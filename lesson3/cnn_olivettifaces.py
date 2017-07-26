@@ -178,7 +178,7 @@ def plot(error_index, dataset_path):
     )
     fig = plt.gcf()
     fig.set_size_inches(11.40, 9.42)
-    plt.savefig("result.png", bbox_inches="tight", dpi=100)
+    plt.savefig("fig_result.png", bbox_inches="tight", dpi=100)
     plt.show()
 
 

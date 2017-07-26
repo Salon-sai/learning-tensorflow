@@ -176,8 +176,8 @@ def plot(error_index, dataset_path):
                 facecolor='none'
             )
     )
-    # plt.show()
     plt.savefig("result.png")
+    plt.show()
 
 
 def train():
@@ -228,7 +228,7 @@ def train():
         saver.restore(session, model_path)
         correct = tf.equal(tf.argmax(predict,1), tf.argmax(Y,1))
         valid_accuracy = tf.reduce_mean(tf.cast(correct,'float'))
-        print('校验集合准确率: ', valid_accuracy.eval({X: vaild_set_x, Y: valid_set_y}))
+        print('valid set accuracy: ', valid_accuracy.eval({X: vaild_set_x, Y: valid_set_y}))
 
         test_pred = tf.argmax(predict, 1).eval({X: test_set_x})
         test_true = np.argmax(test_set_y, 1)

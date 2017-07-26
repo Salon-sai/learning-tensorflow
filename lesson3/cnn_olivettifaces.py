@@ -18,7 +18,7 @@ sys.setdefaultencoding('utf-8')
 def load_data(dataset_path):
     img = Image.open(dataset_path)
     # 定义一个20 × 20的训练样本，一共有40个人，每个人都10张样本照片
-    img_ndarray = np.asarray(img, dtype='float64') / 64
+    img_ndarray = np.asarray(img, dtype='float64') / 256
 
     # 记录脸数据矩阵，57 * 47为每张脸的像素矩阵
     faces = np.empty((400, 57 * 47))
@@ -57,11 +57,7 @@ def load_data(dataset_path):
         (test_data, test_label)
     ]
 
-def convolutional_layer(
-        data,
-        kernel_size,
-        bias_size,
-        pooling_size):
+def convolutional_layer(data, kernel_size, bias_size, pooling_size):
     kernel = tf.get_variable("conv", kernel_size, initializer=tf.random_normal_initializer())
     bias = tf.get_variable('bias', bias_size, initializer=tf.random_normal_initializer())
 
@@ -83,7 +79,7 @@ def convolutional_neural_network(data):
 
     kernel_shape1=[5, 5, 1, 32]
     kernel_shape2=[5, 5, 32, 64]
-    full_conn_w_shape = [7 * 6 * 64, 1024]
+    full_conn_w_shape = [15 * 12 * 64, 1024]
     out_w_shape = [1024, n_ouput_layer]
 
     bias_shape1=[32]
@@ -107,12 +103,12 @@ def convolutional_neural_network(data):
     #     "out":  tf.get_variable("b_out", [n_ouput_layer], initializer=tf.random_normal_initializer())
     # }
 
-    # 经过第一层卷积神经网络后，得到的张量shape为：[batch, 19, 16, 32]
+    # 经过第一层卷积神经网络后，得到的张量shape为：[batch, 29, 24, 32]
     # conv1 = tf.nn.conv2d(data, weights['w_conv1'], strides=[1, 1, 1, 1], padding='SAME')
     # ouput1 = tf.nn.relu(tf.add(conv1, biases['b_conv1']))
     # layer1_output = tf.nn.max_pool(ouput1, ksize=[1, 3, 3, 1], strides=[1, 3, 3, 1], padding="SAME")
 
-    # 经过第二层卷积神经网络后，得到的张量shape为：[batch, 7, 6, 64]
+    # 经过第二层卷积神经网络后，得到的张量shape为：[batch, 15, 12, 64]
     # conv2 = tf.nn.conv2d(layer1_output, weights['w_conv2'], strides=[1, 1, 1, 1], padding='SAME')
     # ouput2 = tf.nn.relu(tf.add(conv2, biases['b_conv2']))
     # layer2_output = tf.nn.max_pool(ouput2, ksize=[1, 3, 3, 1], strides=[1, 3, 3, 1], padding='SAME')
@@ -124,21 +120,24 @@ def convolutional_neural_network(data):
     # output = tf.add(tf.matmul(layer3_output, weights["out"]), biases["out"])
 
 
+    # 经过第一层卷积神经网络后，得到的张量shape为：[batch, 29, 24, 32]
     with tf.variable_scope("conv_layer1") as layer1:
         layer1_output = convolutional_layer(
             data=data,
             kernel_size=kernel_shape1,
             bias_size=bias_shape1,
-            pooling_size=[1, 3, 3, 1]
+            pooling_size=[1, 2, 2, 1]
         )
+    # 经过第二层卷积神经网络后，得到的张量shape为：[batch, 15, 12, 64]
     with tf.variable_scope("conv_layer2") as layer2:
         layer2_output = convolutional_layer(
             data=layer1_output,
             kernel_size=kernel_shape2,
             bias_size=bias_shape2,
-            pooling_size=[1, 3, 3, 1]
+            pooling_size=[1, 2, 2, 1]
         )
     with tf.variable_scope("full_connection") as full_layer3:
+        # 讲卷积层张量数据拉成2-D张量只有有一列的列向量
         layer2_output_flatten = tf.contrib.layers.flatten(layer2_output)
         layer3_output = tf.nn.relu(
             linear_layer(
@@ -147,6 +146,7 @@ def convolutional_neural_network(data):
                 biases_size=full_conn_b_shape
             )
         )
+        # layer3_output = tf.nn.dropout(layer3_output, 0.8)
     with tf.variable_scope("output") as output_layer4:
         output = linear_layer(
             data=layer3_output,
@@ -176,7 +176,8 @@ def plot(error_index, dataset_path):
                 facecolor='none'
             )
     )
-    plt.show()
+    # plt.show()
+    plt.savefig("result.png")
 
 
 def train():

@@ -129,7 +129,7 @@ def convolutional_neural_network(data):
             pooling_size=[1, 2, 2, 1]
         )
     # 经过第二层卷积神经网络后，得到的张量shape为：[batch, 15, 12, 64]
-    with tf.variable_scope("conv_layer2") as layer2:
+    with tf.variable_scope("cocnv_layer2") as layer2:
         layer2_output = convolutional_layer(
             data=layer1_output,
             kernel_size=kernel_shape2,

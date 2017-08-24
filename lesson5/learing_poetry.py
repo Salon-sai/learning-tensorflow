@@ -46,3 +46,5 @@ with tf.Session() as session:
                 [optimizer, last_state, cost, learning_rate, global_step],
                 feed_dict={train_data: x_data, train_label: y_data})
             print(epoch, batch, c, lr, gs)
+            if epoch % 7 == 0:
+                saver.save(session, 'poetry.module', global_step=epoch)

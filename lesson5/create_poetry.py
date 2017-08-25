@@ -30,7 +30,7 @@ with tf.Session() as session:
     session.run(tf.global_variables_initializer())
     saver = tf.train.Saver(tf.global_variables())
     print("generate...")
-    saver.restore(session, './model/poetry.module-49')
+    saver.restore(session, './model/poetry.module-140')
     # 起始字符是'['，
     x = np.array([list(map(dictionary.get, '['))])
     # 运行初始0状态

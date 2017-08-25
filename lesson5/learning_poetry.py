@@ -32,10 +32,10 @@ loss = tf.contrib.legacy_seq2seq.sequence_loss_by_example([logists], [targets], 
 cost = tf.reduce_mean(loss)
 
 global_step = tf.Variable(0, trainable=False)
-learning_rate = tf.train.exponential_decay(0.01, global_step, batch_generator._batch_num, 0.97, staircase=True)
+learning_rate = tf.train.exponential_decay(0.01, global_step, batch_generator._batch_num, 0.9, staircase=True)
 optimizer = tf.train.AdamOptimizer(learning_rate)
 gradients, v = zip(*optimizer.compute_gradients(cost))
-gradients, _ = tf.clip_by_global_norm(gradients, 1.25)
+gradients, _ = tf.clip_by_global_norm(gradients, 5)
 optimizer = optimizer.apply_gradients(zip(gradients, v), global_step=global_step)
 
 with tf.Session() as session:
@@ -52,7 +52,7 @@ with tf.Session() as session:
     # 损失最小值
     best_cost = float('Inf')
     start_time = datetime.datetime.now()
-    for epoch in range(50):
+    for epoch in range(141):
         epoch_start_time = datetime.datetime.now()
         epoch_mean_cost = 0
         for batch in range(batch_generator._batch_num):
@@ -61,12 +61,14 @@ with tf.Session() as session:
                 [optimizer, last_state, cost, learning_rate, global_step],
                 feed_dict={train_data: x_data, train_label: y_data})
             epoch_mean_cost += c
-            print(epoch, batch, c, lr, gs)
+            print("current epoch %d, current batch is %d, mean cost : %2.8f, \
+                learning rate: %2.8f, global step : %d" %(epoch, batch, c, lr, gs))
         epoch_mean_cost = epoch_mean_cost / batch_generator._batch_num
         print("="*80)
         print("\n")
-        print("the best cost : %2.8f, the best epoch index : %d, current epoch cost : %2.8f \n" \
-            %(best_cost, best_cost_epoch, epoch_mean_cost))
+        if epoch != 0:
+            print("the best cost : %2.8f, the best epoch index : %d, current epoch cost : %2.8f \n" \
+                %(best_cost, best_cost_epoch, epoch_mean_cost))
         if best_cost > epoch_mean_cost:
             print("the best epoch will change from %d to %d" %(best_cost_epoch, epoch))
             best_cost = epoch_mean_cost
@@ -80,4 +82,6 @@ with tf.Session() as session:
         end_time = datetime.datetime.now()
         timedelta = epoch_start_time - end_time
         print("the epoch training spends %d days, %d hours, %d minutes, %d seconds" \
-            %(timedelta.days, timedelta.seconds // 3600, timedelta // 60, timedelta % 60))
+            %(timedelta.days, timedelta.seconds // 3600, timedelta.seconds // 60, timedelta.seconds % 60))
+    print("the training spends %d days, %d hours, %d minutes, %d seconds" \
+            %(timedelta.days, timedelta.seconds // 3600, timedelta.seconds // 60, timedelta.seconds % 60))

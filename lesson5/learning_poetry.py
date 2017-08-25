@@ -43,7 +43,7 @@ with tf.Session() as session:
 
     saver = tf.train.Saver(tf.global_variables())
     print("training...")
-    model_dir = "./model"
+    model_dir = "./model/"
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
         print("create the directory: %s" % model_dir)
@@ -72,9 +72,9 @@ with tf.Session() as session:
             print("the best epoch will change from %d to %d" %(best_cost_epoch, epoch))
             best_cost = epoch_mean_cost
             best_cost_epoch = epoch
-            saver.save(session, 'poetry.module-best')
+            saver.save(session, model_dir + 'poetry.module-best')
         if epoch % 7 == 0:
-            saver.save(session, 'poetry.module', global_step=epoch)
+            saver.save(session, model_dir + 'poetry.module', global_step=epoch)
         end_time = datetime.datetime.now()
         timedelta = end_time - epoch_start_time
         print("the epoch training spends %d days, %d hours, %d minutes, %d seconds.\n" \

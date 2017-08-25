@@ -2,6 +2,9 @@
 import datetime
 import tensorflow as tf
 
+import os
+import sys
+
 import reader
 from BatchGenerator import BatchGenerator
 from GeneratePoetryModel import GeneratePoetryModel
@@ -41,6 +44,9 @@ with tf.Session() as session:
     saver = tf.train.Saver(tf.global_variables())
     print("training...")
     model_dir = "./model"
+    if not os.path.exists(model_dir):
+        os.mkdir(model_dir)
+        print("create the directory: %s" % model_dir)
     # 损失值最小的回合
     best_cost_epoch = 0
     # 损失最小值

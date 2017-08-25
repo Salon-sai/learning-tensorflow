@@ -14,8 +14,16 @@ class GeneratePoetryModel(object):
         self._initial_state = self._model_layers.zero_state(batch_size, tf.float32)
 
         with tf.variable_scope('rnnlm'):
-            softmax_w = tf.get_variable("softmax_w", [self._num_unit, self._output_size])
-            softmax_b = tf.get_variable("softmax_b", [self._output_size])
+            n = (self._num_unit + self._output_size) * 0.5
+            scale = tf.sqrt(3 / n)
+            softmax_w = tf.get_variable(
+                "softmax_w",
+                [self._num_unit, self._output_size],
+                initializer=tf.random_uniform_initializer(-scale, scale))
+            softmax_b = tf.get_variable(
+                "softmax_b",
+                [self._output_size],
+                initializer=tf.random_uniform_initializer(-scale, scale))
             with tf.device("/cpu:0"):
                 embedding = tf.get_variable("embedding", [self._input_size, self._num_unit])
                 inputs = tf.nn.embedding_lookup(embedding, X)

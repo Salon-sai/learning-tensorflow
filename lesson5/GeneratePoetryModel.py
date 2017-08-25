@@ -1,8 +1,8 @@
 # -*-coding:utf-8-*-#
 import tensorflow as tf
 
-class GeneratePopetryModel(object):
-    """docstring for GeneratePopetryModel"""
+class GeneratePoetryModel(object):
+    """docstring for GeneratePoetryModel"""
     def __init__(self, X, batch_size, input_size, output_size, model='lstm', rnn_size=128, num_layers=2):
         self._model = model
         self._num_unit = rnn_size
@@ -11,7 +11,7 @@ class GeneratePopetryModel(object):
         self._output_size = output_size
         self._model_layers = self._get_layer()
 
-        initial_state = self._model_layers.zero_state(batch_size, tf.float32)
+        self._initial_state = self._model_layers.zero_state(batch_size, tf.float32)
 
         with tf.variable_scope('rnnlm'):
             softmax_w = tf.get_variable("softmax_w", [self._num_unit, self._output_size])
@@ -20,7 +20,7 @@ class GeneratePopetryModel(object):
                 embedding = tf.get_variable("embedding", [self._input_size, self._num_unit])
                 inputs = tf.nn.embedding_lookup(embedding, X)
 
-        outputs, last_state = tf.nn.dynamic_rnn(self._model_layers, inputs, initial_state=initial_state, scope="rnnlm")
+        outputs, last_state = tf.nn.dynamic_rnn(self._model_layers, inputs, initial_state=self._initial_state, scope="rnnlm")
         self._outputs = tf.reshape(outputs, [-1, self._num_unit])
         self._last_state = last_state
 
@@ -43,4 +43,4 @@ class GeneratePopetryModel(object):
 
 
     def results(self):
-        return self._logists, self._last_state, self._probs
+        return self._logists, self._last_state, self._probs, self._initial_state

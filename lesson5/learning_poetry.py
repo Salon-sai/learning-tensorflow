@@ -61,27 +61,26 @@ with tf.Session() as session:
                 [optimizer, last_state, cost, learning_rate, global_step],
                 feed_dict={train_data: x_data, train_label: y_data})
             epoch_mean_cost += c
-            print("current epoch %d, current batch is %d, mean cost : %2.8f, \
-                learning rate: %2.8f, global step : %d" %(epoch, batch, c, lr, gs))
+            print("current epoch %d, current batch is %d, mean cost : %2.8f, learning rate: %2.8f, global step : %d"
+                %(epoch, batch, c, lr, gs))
         epoch_mean_cost = epoch_mean_cost / batch_generator._batch_num
         print("="*80)
-        print("\n")
         if epoch != 0:
-            print("the best cost : %2.8f, the best epoch index : %d, current epoch cost : %2.8f \n" \
+            print("\nthe best cost : %2.8f, the best epoch index : %d, current epoch cost : %2.8f. \n" \
                 %(best_cost, best_cost_epoch, epoch_mean_cost))
         if best_cost > epoch_mean_cost:
             print("the best epoch will change from %d to %d" %(best_cost_epoch, epoch))
             best_cost = epoch_mean_cost
             best_cost_epoch = epoch
             saver.save(session, 'poetry.module-best')
-        print("\n")
-        print("="*80)
-        print("\n")
         if epoch % 7 == 0:
             saver.save(session, 'poetry.module', global_step=epoch)
         end_time = datetime.datetime.now()
         timedelta = epoch_start_time - end_time
-        print("the epoch training spends %d days, %d hours, %d minutes, %d seconds" \
+        print("the epoch training spends %d days, %d hours, %d minutes, %d seconds.\n" \
             %(timedelta.days, timedelta.seconds // 3600, timedelta.seconds // 60, timedelta.seconds % 60))
-    print("the training spends %d days, %d hours, %d minutes, %d seconds" \
+        print("="*80)
+    print("\n")
+    print("*"*80)
+    print("\nThe training spends %d days, %d hours, %d minutes, %d seconds" \
             %(timedelta.days, timedelta.seconds // 3600, timedelta.seconds // 60, timedelta.seconds % 60))

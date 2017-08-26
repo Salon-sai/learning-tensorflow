@@ -17,7 +17,9 @@ class BatchGenerator(object):
         for index in range(self._batch_num):
             start = index * self._batch_size
             end = start + self._batch_size
+            # 当前batch中诗词的最大长度
             length = max(map(len, self._data[start: end]))
+            # 创建batch数据，假如有诗词没有达到最大长度使用空格作为补充
             batch_data = np.full((self._batch_size, length), empty_key, np.int32)
             for row in range(self._batch_size):
                 poetry = self._data[start + row]

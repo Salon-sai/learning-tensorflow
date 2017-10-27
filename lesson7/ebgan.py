@@ -110,9 +110,9 @@ def generator(noise):
         out_5 = tf.nn.bias_add(out_5, generator_variables_dict['b_5'])
         out_5 = tf.nn.tanh(out_5, name='tanh_5')
 
-        with tf.variable_scope("fc-2**IMAGE_SIZE"):
-            weight = tf.get_variable('W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
-            bias = tf.get_variable("b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
+        # with tf.variable_scope("fc-2**IMAGE_SIZE"):
+        #     weight = tf.get_variable('W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
+        #     bias = tf.get_variable("b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
 
     return out_5
 

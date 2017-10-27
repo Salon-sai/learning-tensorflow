@@ -209,7 +209,7 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer(), feed_dict={train_phase: True})
     saver = tf.train.Saver()
 
-    ckpt = tf.train.get_checkpoint_state('.')
+    ckpt = tf.train.get_checkpoint_state('./model')
     if ckpt != None:
         print(ckpt.model_checkpoint_path)
         saver.restore(sess, ckpt.model_checkpoint_path)
@@ -228,7 +228,7 @@ with tf.Session() as sess:
             print(step, d_loss, g_loss)
 
             if step % 100 == 0:
-                saver.save(sess, "celeba.model", global_step=step)
+                saver.save(sess, "./model/celeba.model", global_step=step)
 
                 test_nosie = np.random.uniform(-1.0, 1.0, size=(5, z_dim)).astype(np.float32)
                 images = sess.run(fake_image, feed_dict={noise: test_nosie, train_phase: False})
@@ -239,5 +239,7 @@ with tf.Session() as sess:
                     image *= 127.5
                     image = np.clip(image, 0, 255).astype(np.uint8)
                     image = np.reshape(image, (IMAGE_SIZE, IMAGE_SIZE, -1))
-                    misc.imsave('fake_image' + str(step) + str(k) + '.jpg', image)
+                    if not os.path.isdir('generate_img'):
+                        os.mkdir('generate_img');
+                    misc.imsave('./generate_img/fake_image' + str(step) + str(k) + '.jpg', image)
             step += 1

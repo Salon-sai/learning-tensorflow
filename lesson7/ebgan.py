@@ -88,31 +88,48 @@ generator_variables_dict = {
 
 def generator(noise):
     with tf.variable_scope("Generator"):
-        out_1 = tf.matmul(noise, generator_variables_dict["W_1"]) + generator_variables_dict["b_1"]
-        out_1 = tf.reshape(out_1, [-1, IMAGE_SIZE // 16, IMAGE_SIZE // 16, 512])
-        out_1 = batch_norm(out_1, generator_variables_dict["beta_1"], generator_variables_dict["gamma_1"], train_phase, scope="bn_1")
-        out_1 = tf.nn.relu(out_1, name='relu_1')
+        with tf.variable_scope("fc-layer1"):
+            weight = tf.get_variable('W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
+            bias = tf.get_variable("b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
+            beta = tf.get_variable("beta", [512], initializer=tf.constant_initializer(0))
+            gamma = tf.get_variable("beta", [512], initializer=tf.random_normal_initializer(mean=1.0, stddev=0.02))
+            out_1 = tf.matmul(noise, weight) + bias
+            out_1 = tf.reshape(out_1, [-1, IMAGE_SIZE // 16 , IMAGE_SIZE // 16, 512])
+            out_1 = batch_norm(out_1, beta, gamma, train_phase)
+            out_1 = tf.nn.relu(out_1, name="relu_activate")
+        with tf.variable_scope("deconv-layer2"):
+            out_2 = deconv_layer(out_1, [5, 5, 256, 512], [1, 2, 2, 1], [tf.shape(out_1)[0], IMAGE_SIZE // 8, IMAGE_SIZE // 8, 256], train_phase)
+        with tf.variable_scope("deconv-layer3"):
+            out_3 = deconv_layer(out_2, [5, 5, 128, 256], [1, 2, 2, 1], [tf.shape(out_1)[0], IMAGE_SIZE // 4, IMAGE_SIZE // 4, 128], train_phase)
+        with tf.variable_scope("deconv-layer4"):
+            out_4 = deconv_layer(out_3, [5, 5, 64, 128], [1, 2, 2, 1], [tf.shape(out_1)[0], IMAGE_SIZE // 2, IMAGE_SIZE // 2, 64], train_phase)
+        with tf.variable_scope("deconv-layer5"):
+            out_5 = deconv_layer(out_4, [5, 5, IMAGE_CHANNEL, 64], [1, 2, 2, 1], [tf.shape(out_4)[0], IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNEL], train_phase, has_batch_norm=False)
 
-        out_2 = tf.nn.conv2d_transpose(out_1, generator_variables_dict["W_2"], output_shape=tf.stack([tf.shape(out_1)[0], IMAGE_SIZE // 8, IMAGE_SIZE // 8, 256]), strides=[1, 2, 2, 1], padding='SAME')
-        out_2 = tf.nn.bias_add(out_2, generator_variables_dict["b_2"])
-        out_2 = batch_norm(out_2, generator_variables_dict["beta_2"], generator_variables_dict["gamma_2"], train_phase, scope="bn_2")
-        out_2 = tf.nn.relu(out_2, name='relu_2')
+        # out_1 = tf.matmul(noise, generator_variables_dict["W_1"]) + generator_variables_dict["b_1"]
+        # out_1 = tf.reshape(out_1, [-1, IMAGE_SIZE // 16, IMAGE_SIZE // 16, 512])
+        # out_1 = batch_norm(out_1, generator_variables_dict["beta_1"], generator_variables_dict["gamma_1"], train_phase, scope="bn_1")
+        # out_1 = tf.nn.relu(out_1, name='relu_1')
+        # out_2 = tf.nn.conv2d_transpose(out_1, generator_variables_dict["W_2"], output_shape=tf.stack([tf.shape(out_1)[0], IMAGE_SIZE // 8, IMAGE_SIZE // 8, 256]), strides=[1, 2, 2, 1], padding='SAME')
+        # out_2 = tf.nn.bias_add(out_2, generator_variables_dict["b_2"])
+        # out_2 = batch_norm(out_2, generator_variables_dict["beta_2"], generator_variables_dict["gamma_2"], train_phase, scope="bn_2")
+        # out_2 = tf.nn.relu(out_2, name='relu_2')
 
-        out_3 = tf.nn.conv2d_transpose(out_2, generator_variables_dict["W_3"], output_shape=tf.stack([tf.shape(out_2)[0], IMAGE_SIZE // 4, IMAGE_SIZE // 4, 128]), strides=[1, 2, 2, 1], padding='SAME')
-        out_3 = tf.nn.bias_add(out_3, generator_variables_dict["b_3"])
-        out_3 = batch_norm(out_3, generator_variables_dict["beta_3"], generator_variables_dict["gamma_3"], train_phase, scope="bn_3")
-        out_3 = tf.nn.relu(out_3, name='relu_3')
+        # out_3 = tf.nn.conv2d_transpose(out_2, generator_variables_dict["W_3"], output_shape=tf.stack([tf.shape(out_2)[0], IMAGE_SIZE // 4, IMAGE_SIZE // 4, 128]), strides=[1, 2, 2, 1], padding='SAME')
+        # out_3 = tf.nn.bias_add(out_3, generator_variables_dict["b_3"])
+        # out_3 = batch_norm(out_3, generator_variables_dict["beta_3"], generator_variables_dict["gamma_3"], train_phase, scope="bn_3")
+        # out_3 = tf.nn.relu(out_3, name='relu_3')
 
-        out_4 = tf.nn.conv2d_transpose(out_3, generator_variables_dict["W_4"], output_shape=tf.stack([tf.shape(out_3)[0], IMAGE_SIZE // 2, IMAGE_SIZE // 2, 64]), strides=[1, 2, 2, 1], padding='SAME')
-        out_4 = tf.nn.bias_add(out_4, generator_variables_dict["b_4"])
-        out_4 = batch_norm(out_4, generator_variables_dict["beta_4"], generator_variables_dict["gamma_4"], train_phase, scope="bn_4")
-        out_4 = tf.nn.relu(out_4, name='relu_4')
+        # out_4 = tf.nn.conv2d_transpose(out_3, generator_variables_dict["W_4"], output_shape=tf.stack([tf.shape(out_3)[0], IMAGE_SIZE // 2, IMAGE_SIZE // 2, 64]), strides=[1, 2, 2, 1], padding='SAME')
+        # out_4 = tf.nn.bias_add(out_4, generator_variables_dict["b_4"])
+        # out_4 = batch_norm(out_4, generator_variables_dict["beta_4"], generator_variables_dict["gamma_4"], train_phase, scope="bn_4")
+        # out_4 = tf.nn.relu(out_4, name='relu_4')
 
-        out_5 = tf.nn.conv2d_transpose(out_4, generator_variables_dict["W_5"], output_shape=tf.stack([tf.shape(out_4)[0], IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNEL]), strides=[1, 2, 2, 1], padding='SAME')
-        out_5 = tf.nn.bias_add(out_5, generator_variables_dict['b_5'])
-        out_5 = tf.nn.tanh(out_5, name='tanh_5')
+        # out_5 = tf.nn.conv2d_transpose(out_4, generator_variables_dict["W_5"], output_shape=tf.stack([tf.shape(out_4)[0], IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNEL]), strides=[1, 2, 2, 1], padding='SAME')
+        # out_5 = tf.nn.bias_add(out_5, generator_variables_dict['b_5'])
+        # out_5 = tf.nn.tanh(out_5, name='tanh_5')
 
-        # with tf.variable_scope("fc-2**IMAGE_SIZE"):
+        # with tf.variable_scope("fc_2**IMAGE_SIZE"):
         #     weight = tf.get_variable('W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
         #     bias = tf.get_variable("b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
 
@@ -131,7 +148,7 @@ def conv_layer(input, kernel_size, strides_size, train_phase, activate='leaky_re
     else:
         weight, bias, _, _ = get_paramter(kernel_size, kernel_size[3], False)
 
-    out = tf.nn.conv2d(input, weight, strides=strides_size, padding='SAME')
+    out = tf.nn.conv2d(input, weight, strides=strides_size, padding="SAME")
     out = tf.nn.bias_add(out, bias)
     if has_batch_norm:
         out = batch_norm(out, beta, gamma, train_phase)
@@ -150,7 +167,7 @@ def deconv_layer(input, kernel_size, strides_size, output_shape, train_phase, ac
     else:
         weight, bias, _, _ = get_paramter(kernel_size, kernel_size[2], False)
 
-    out = tf.nn.conv2d_transpose(input, weight, output_shape=tf.stack(output_shape), strides=strides_size)
+    out = tf.nn.conv2d_transpose(input, weight, output_shape=tf.stack(output_shape), strides=strides_size, padding="SAME")
     out = tf.nn.bias_add(out, bias)
     
     if has_batch_norm:

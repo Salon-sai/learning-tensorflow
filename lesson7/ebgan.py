@@ -16,13 +16,13 @@ train_images = []
 num_batch = 0
 
 # jilv training images
-# for image_filename in os.listdir(CELEBA_DATE_DIR):
-#     if image_filename.endswith('.jpg'):
-#         train_images.append(os.path.join(CELEBA_DATE_DIR, image_filename))
+for image_filename in os.listdir(CELEBA_DATE_DIR):
+    if image_filename.endswith('.jpg'):
+        train_images.append(os.path.join(CELEBA_DATE_DIR, image_filename))
 
-# random.shuffle(train_images)
+random.shuffle(train_images)
 
-# num_batch = len(train_images) // batch_size
+num_batch = len(train_images) // batch_size
 
 
 
@@ -61,30 +61,30 @@ def batch_norm(x, beta, gamma, phase_train, scope='bn', decay=0.9, eps=1e-5):
 
     return normed
 
-generator_variables_dict = {
-    "W_1": tf.Variable(tf.truncated_normal([z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], stddev=0.02), name="Generator/W_1"),
-    "b_1": tf.Variable(tf.constant(0.0, shape=[2 * IMAGE_SIZE * IMAGE_SIZE]), name='Generator/b_1'),
-    "beta_1": tf.Variable(tf.constant(0.0, shape=[512]), name='Generator/beta_1'),
-    "gamma_1": tf.Variable(tf.random_normal(shape=[512], mean=1.0, stddev=0.02), name='Generator/gamma_1'),
+# generator_variables_dict = {
+#     "W_1": tf.Variable(tf.truncated_normal([z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], stddev=0.02), name="Generator/W_1"),
+#     "b_1": tf.Variable(tf.constant(0.0, shape=[2 * IMAGE_SIZE * IMAGE_SIZE]), name='Generator/b_1'),
+#     "beta_1": tf.Variable(tf.constant(0.0, shape=[512]), name='Generator/beta_1'),
+#     "gamma_1": tf.Variable(tf.random_normal(shape=[512], mean=1.0, stddev=0.02), name='Generator/gamma_1'),
 
-    "W_2": tf.Variable(tf.truncated_normal([5, 5, 256, 512], stddev=0.02), name="Generator/W_2"),
-    "b_2": tf.Variable(tf.constant(0.0, shape=[256]), name="Generator/b_2"),
-    "beta_2": tf.Variable(tf.constant(0.0, shape=[256]), name="Generator/beta_2"),
-    "gamma_2": tf.Variable(tf.random_normal(shape=[256], mean=1.0, stddev=0.02), name="Generator/gamma_2"),
+#     "W_2": tf.Variable(tf.truncated_normal([5, 5, 256, 512], stddev=0.02), name="Generator/W_2"),
+#     "b_2": tf.Variable(tf.constant(0.0, shape=[256]), name="Generator/b_2"),
+#     "beta_2": tf.Variable(tf.constant(0.0, shape=[256]), name="Generator/beta_2"),
+#     "gamma_2": tf.Variable(tf.random_normal(shape=[256], mean=1.0, stddev=0.02), name="Generator/gamma_2"),
 
-    "W_3": tf.Variable(tf.truncated_normal([5, 5, 128, 256], stddev=0.02), name="Generator/W_3"),
-    "b_3": tf.Variable(tf.constant(0.0, shape=[128]), name="Generator/b_3"),
-    "beta_3": tf.Variable(tf.constant(0.0, shape=[128]), name="Generator/beta_3"),
-    "gamma_3": tf.Variable(tf.random_normal(shape=[128], mean=1.0, stddev=0.02), name="Generator/gamma_3"),
+#     "W_3": tf.Variable(tf.truncated_normal([5, 5, 128, 256], stddev=0.02), name="Generator/W_3"),
+#     "b_3": tf.Variable(tf.constant(0.0, shape=[128]), name="Generator/b_3"),
+#     "beta_3": tf.Variable(tf.constant(0.0, shape=[128]), name="Generator/beta_3"),
+#     "gamma_3": tf.Variable(tf.random_normal(shape=[128], mean=1.0, stddev=0.02), name="Generator/gamma_3"),
 
-    "W_4": tf.Variable(tf.truncated_normal([5, 5, 64, 128], stddev=0.02), name="Generator/W_4"),
-    "b_4": tf.Variable(tf.constant(0.0, shape=[64]), name="Generator/b_4"),
-    "beta_4": tf.Variable(tf.constant(0.0, shape=[64]), name="Generator/beta_4"),
-    "gamma_4": tf.Variable(tf.random_normal(shape=[64], mean=1.0, stddev=0.02), name="Generator/gamma_4"),
+#     "W_4": tf.Variable(tf.truncated_normal([5, 5, 64, 128], stddev=0.02), name="Generator/W_4"),
+#     "b_4": tf.Variable(tf.constant(0.0, shape=[64]), name="Generator/b_4"),
+#     "beta_4": tf.Variable(tf.constant(0.0, shape=[64]), name="Generator/beta_4"),
+#     "gamma_4": tf.Variable(tf.random_normal(shape=[64], mean=1.0, stddev=0.02), name="Generator/gamma_4"),
 
-    "W_5": tf.Variable(tf.truncated_normal([5, 5, IMAGE_CHANNEL, 64], stddev=0.02), name="Generator/W_5"),
-    "b_5": tf.Variable(tf.constant(0.0, shape=[IMAGE_CHANNEL]), name="Generator/b_5")
-}
+#     "W_5": tf.Variable(tf.truncated_normal([5, 5, IMAGE_CHANNEL, 64], stddev=0.02), name="Generator/W_5"),
+#     "b_5": tf.Variable(tf.constant(0.0, shape=[IMAGE_CHANNEL]), name="Generator/b_5")
+# }
 
 def generator(noise):
     with tf.variable_scope("Generator"):
@@ -92,7 +92,8 @@ def generator(noise):
             weight = tf.get_variable('W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
             bias = tf.get_variable("b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
             beta = tf.get_variable("beta", [512], initializer=tf.constant_initializer(0))
-            gamma = tf.get_variable("beta", [512], initializer=tf.random_normal_initializer(mean=1.0, stddev=0.02))
+            gamma = tf.get_variable("gamma", [512], initializer=tf.random_normal_initializer(mean=1.0, stddev=0.02))
+
             out_1 = tf.matmul(noise, weight) + bias
             out_1 = tf.reshape(out_1, [-1, IMAGE_SIZE // 16 , IMAGE_SIZE // 16, 512])
             out_1 = batch_norm(out_1, beta, gamma, train_phase)
@@ -222,13 +223,13 @@ G_loss = fake_loss
 def optimizer(loss, d_or_g):
     optim = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5)
     var_list = [v for v in tf.trainable_variables() if v.name.startswith(d_or_g)]
-    print(*var_list, sep='\n')
+    # print(*var_list, sep='\n')
     gradient = optim.compute_gradients(loss, var_list=var_list)
     return optim.apply_gradients(gradient)
 
-print("\nGenerator......")
-train_op_G = optimizer(G_loss, 'Generator')
-print("\nDiscriminator......")
+# print("\nGenerator......")
+train_op_G = optimizer(G_loss, 'fake_loss/Generator')
+# print("\nDiscriminator......")
 train_op_D = optimizer(D_loss, 'real_loss/Discriminator')
 
 def generate_fake_img(session, step='final'):
@@ -279,5 +280,5 @@ def EB_GAN(train=True):
         else:
             generate_fake_img(sess)
 
-# if __name__ == '__main__':
-#     EB_GAN(True)
+if __name__ == '__main__':
+    EB_GAN(True)

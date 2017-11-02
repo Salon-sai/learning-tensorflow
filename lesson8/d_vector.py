@@ -54,7 +54,8 @@ with tf.Session() as session:
     if not os.path.exists(model_dir):
         os.mkdir(model_dir)
 
-    while epoch > 0:
+    i = 0
+    while i < epoch:
 
         for batch in range(batch_num):
             data, label = next(generator)
@@ -66,4 +67,6 @@ with tf.Session() as session:
             if gs % 50000:
                 saver.save(session, model_dir + 'd_vector.module', global_step=gs)
 
-
+        i += 1
+        saver.save(session, model_dir + 'd_vector.module_%d' % i)
+        # eval the test set

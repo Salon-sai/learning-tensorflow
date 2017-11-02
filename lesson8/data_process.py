@@ -50,15 +50,17 @@ def generate_batch(batch_size):
         if next_cursor < train_num - 1:
             yield train_data[cursor: next_cursor], train_labels[cursor: next_cursor]
         else:
+            next_cursor %= train_num
             yield np.concatenate((train_data[cursor:], train_data[:next_cursor])), np.concatenate((train_labels[cursor:], train_labels[:next_cursor]))
         cursor = next_cursor
 
-# batch_size = 64
-# batch_num = train_data.shape[0] // batch_size
-# generator = generate_batch(batch_size)
+batch_size = 64
+batch_num = train_data.shape[0] // batch_size
+generator = generate_batch(batch_size)
 
-# for i in range(batch_num):
+# for i in range(2*batch_num):
 #     batch = train_data[batch_size * i: batch_size * (i + 1)]
 #     assert np.array_equal(batch, next(generator)[0])
-
+#     data, label = next(generator)
+#     assert data.shape[0] == 64
 

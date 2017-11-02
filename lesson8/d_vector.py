@@ -64,7 +64,7 @@ with tf.Session() as session:
             _, l, lr, gs = session.run([optimizer, loss_function, learning_rate, global_step], feed_dict={X: data, Y: label})
             print(l, lr, gs)
 
-            if gs % 50000:
+            if gs % 5000 == 0:
                 saver.save(session, model_dir + 'd_vector.module', global_step=gs)
 
         i += 1

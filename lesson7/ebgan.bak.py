@@ -17,13 +17,13 @@ num_batch = 0
 z_dim = 100
 
 # # jilv training images
-# for image_filename in os.listdir(CELEBA_DATE_DIR):
-#     if image_filename.endswith('.jpg'):
-#         train_images.append(os.path.join(CELEBA_DATE_DIR, image_filename))
+for image_filename in os.listdir(CELEBA_DATE_DIR):
+    if image_filename.endswith('.jpg'):
+        train_images.append(os.path.join(CELEBA_DATE_DIR, image_filename))
 
-# random.shuffle(train_images)
+random.shuffle(train_images)
 
-# num_batch = len(train_images) // batch_size
+num_batch = len(train_images) // batch_size
 
 
 def get_next_batch(pointer):
@@ -225,6 +225,7 @@ def generate_fake_img(session, step='final'):
 def EB_GAN(train=True):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer(), feed_dict={train_phase: True})
+        writer = tf.summary.FileWriter('logs_bak/', sess.graph)
         saver = tf.train.Saver()
 
         ckpt = tf.train.get_checkpoint_state('./model')
@@ -257,5 +258,5 @@ def EB_GAN(train=True):
         else:
             generate_fake_img(sess)
 
-# if __name__ == '__main__':
-#     EB_GAN(False)
+if __name__ == '__main__':
+    EB_GAN(True)

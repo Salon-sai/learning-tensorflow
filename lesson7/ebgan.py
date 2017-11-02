@@ -206,14 +206,23 @@ def discriminator(input_images):
         return encode, decoded
 
 # mean squared errors
-with tf.variable_scope('real_loss'):
+with tf.variable_scope("Loss") as scope:
     _, real_decoded = discriminator(X)
-real_loss = tf.sqrt(2 * tf.nn.l2_loss(real_decoded - X)) / batch_size
-
-with tf.variable_scope('fake_loss'):
     fake_image = generator(noise)
+    real_loss = tf.sqrt(2 * tf.nn.l2_loss(real_decoded - X)) / batch_size
+    
+    scope.reuse_variables()
     _, fake_decoded = discriminator(fake_image)
     fake_loss = tf.sqrt(2 * tf.nn.l2_loss(fake_decoded - fake_image)) / batch_size
+
+# with tf.variable_scope('real_loss'):
+#     _, real_decoded = discriminator(X)
+# real_loss = tf.sqrt(2 * tf.nn.l2_loss(real_decoded - X)) / batch_size
+
+# with tf.variable_scope('fake_loss'):
+#     fake_image = generator(noise)
+#     _, fake_decoded = discriminator(fake_image)
+# fake_loss = tf.sqrt(2 * tf.nn.l2_loss(fake_decoded - fake_image)) / batch_size
 
 # loss
 margin = 20
@@ -223,13 +232,10 @@ G_loss = fake_loss
 def optimizer(loss, d_or_g):
     optim = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5)
     var_list = [v for v in tf.trainable_variables() if v.name.startswith(d_or_g)]
-    # print(*var_list, sep='\n')
     gradient = optim.compute_gradients(loss, var_list=var_list)
     return optim.apply_gradients(gradient)
 
-# print("\nGenerator......")
 train_op_G = optimizer(G_loss, 'fake_loss/Generator')
-# print("\nDiscriminator......")
 train_op_D = optimizer(D_loss, 'real_loss/Discriminator')
 
 def generate_fake_img(session, step='final'):
@@ -248,6 +254,7 @@ def generate_fake_img(session, step='final'):
 def EB_GAN(train=True):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer(), feed_dict={train_phase: True})
+        writer = tf.summary.FileWriter('logs/', sess.graph)
         saver = tf.train.Saver()
 
         ckpt = tf.train.get_checkpoint_state('./model')

@@ -5,7 +5,7 @@ import numpy as np
 import os
 
 BATCH_SIZE = 64
-epoch = 1
+epoch = 20
 model_dir = './model/'
 
 train_data, train_label = dp.get_train_data()

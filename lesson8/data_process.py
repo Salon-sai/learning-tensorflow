@@ -14,6 +14,7 @@ def load_data(path):
     data = []
     label_index = np.array([], dtype=int)
     label_count = 0
+    wav_files_count = 0
 
     for root, dirs, files in os.walk(path):
         # get all wav files in current dir 
@@ -29,9 +30,26 @@ def load_data(path):
         # save all data of same person into the data array
         # the length of data array is number of speakers
         if wav_files:
+            wav_files_count += len(wav_files)
             data.append(data_same_person)
 
+    print("wav_files_count: ", wav_files_count)
+
     return data, np.arange(len(data))
+
+def load_data_with_wavfile(path):
+    data, label_index = load_data(path)
+    datas = []
+    labels = []
+    for data_same_person, index in zip(data, label_index):
+        labels.append(np.full(len(data_same_person), index))
+        datas += data_same_person
+    labels = np.concatenate(labels)
+    print(len(datas))
+    one_hot_label = np.zeros((len(datas), len(label_index)))
+    one_hot_label[np.arange(len(datas)), labels] = 1
+    
+    return datas, one_hot_label
 
 def load_train_data():
     train_data = []

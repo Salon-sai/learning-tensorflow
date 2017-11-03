@@ -31,7 +31,7 @@ def nn_layer(input, w_size, b_size, dropout=True, need_norm=True):
     return tf.nn.dropout(out, 0.5) if dropout else out
 
 def batch_norm(output, outpus_size):
-    mean, var = tf.nn.moments(output, axes=0)
+    mean, var = tf.nn.moments(output, axes=[0])
     beta = tf.Variable(tf.zeros(outpus_size))
     gamma = tf.Variable(tf.ones(outpus_size))
     epsilon = 0.001

@@ -20,12 +20,17 @@ Y = tf.placeholder(tf.float32, [None, label_num])
 
 d_vector = d_v.d_vector_model(X)
 
-def loss_func(d_vector, y):
-    with tf.variable_scope("predict") as predict_layer:
-        predict = d_v.nn_layer(d_vector, [256, label_num], [label_num], dropout=False)
-    return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=predict, labels=y))
+with tf.variable_scope("predict") as predict_layer:
+    predict = d_v.nn_layer(d_vector, [256, label_num], [label_num], dropout=False, need_norm=False)
+    d_v.variable_summaries(predict, 'layer4_predict')
 
-loss_function = loss_func(d_vector, Y)
+with tf.name_scope('accuracy'):
+    correct = tf.equal(tf.argmax(predict, 1), tf.argmax(Y, 1))
+    valid_accuracy = tf.reduce_mean(tf.cast(correct,'float'))
+    tf.summary.scalar('train_accuracy', valid_accuracy)
+
+loss_function = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=predict, labels=Y))
+
 learning_rate = tf.train.exponential_decay(1e-3, global_step, 50000, 0.1, staircase=True)
 optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss_function, global_step=global_step)
 
@@ -43,8 +48,8 @@ with tf.Session() as session:
         print(ckpt.model_checkpoint_path)
         saver.restore(session, ckpt.model_checkpoint_path)
         data, label = next(generator)
-        dvs = session.run(d_vector, feed_dict={X: data})
-        print(dvs.max())
+        accuracy = session.run(valid_accuracy, feed_dict={X: data, Y: label, d_v.train_phase: False})
+        print(accuracy)
 
     else:
         print("no model")
@@ -57,13 +62,28 @@ with tf.Session() as session:
                 data, label = next(generator)
                 # print(data)
                 # print(label)
-                _, l, lr, gs, summary = session.run([optimizer, loss_function, learning_rate, global_step, merged], feed_dict={X: data, Y: label})
+                _, l, lr, gs, summary, accuracy = session.run([optimizer, loss_function, learning_rate, global_step, \
+                    merged, valid_accuracy], feed_dict={X: data, Y: label, d_v.train_phase: True})
                 print(l, lr, gs)
-                writer.add_summary(summary, gs)
+
+                if gs % 1000 == 0:
+                    writer.add_summary(summary, gs)
 
                 if gs % 5000 == 0:
                     saver.save(session, model_dir + 'd_vector.module', global_step=gs)
-
+                    # accuracy = session.run(valid_accuracy, feed_dict={X: data, Y: label, d_v.train_phase: False})
+                    print("\n %1.5f \n" % accuracy)
             i += 1
             saver.save(session, model_dir + 'd_vector.module_%d' % i)
-            # eval the test set
+
+        # gs = 0
+        # while gs < 5000:
+        #     data, label = next(generator)
+        #     # print(data)
+        #     # print(label)
+        #     _, l, lr, gs, summary = session.run([optimizer, loss_function, learning_rate, global_step, merged], feed_dict={X: data, Y: label, d_v.train_phase: True})
+        #     print(l, lr, gs)
+        #     writer.add_summary(summary, gs)
+
+        #     if gs % 5000 == 0:
+        #         saver.save(session, model_dir + 'd_vector.module', global_step=gs)

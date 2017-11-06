@@ -33,8 +33,6 @@ def load_data(path):
             wav_files_count += len(wav_files)
             data.append(data_same_person)
 
-    print("wav_files_count: ", wav_files_count)
-
     return data, np.arange(len(data))
 
 def load_data_with_wavfile(path):

@@ -25,7 +25,8 @@ def RNN_d_vector(data, output_size):
         variable_summaries(weight, "weight")
         bias = tf.get_variable('bias', [output_size], initializer=tf.random_normal_initializer())
         variable_summaries(bias, "bias")
-        outputs = tf.unstack(tf.transpose(outputs, [1, 0, 2]))
+        # outputs = tf.unstack(tf.transpose(outputs, [1, 0, 2]))
+        outputs = tf.transpose(outputs, [1, 0, 2])
         variable_summaries(outputs, "lstm_output")
         result = tf.matmul(outputs[-1], weight) + bias
         variable_summaries(result, "d-vector")

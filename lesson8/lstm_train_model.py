@@ -9,7 +9,6 @@ FEATURE_SIZE = 40
 D_VECTOR_DIM = 256
 
 train_data, train_label = dp.load_data_with_wavfile(dp.TRAIN_PATH)
-print(train_label)
 # batch_num = train_data.shape[0] // BATCH_SIZE + train_data.shape[0] % BATCH_SIZE
 # generator = dp.generate_batch(BATCH_SIZE, train_data, train_label)
 
@@ -60,17 +59,17 @@ def train_rnn_d_vector():
             i = 0
             while i < epoch:
                 for wav_data, label in zip(train_data, train_label):
-                    _, l, accuracy = session.run([optimizer, cost_func, valid_accuracy], feed_dict={X: np.array([wav_data]), Y: np.array([label])})
+                    _, l, accuracy, summary = session.run([optimizer, cost_func, valid_accuracy, merged], feed_dict={X: np.array([wav_data]), Y: np.array([label])})
                     print("loss: ", l)
+                    writer.add_summary(summary, i)
+                    # if i % 1000 == 0:
+                    #     writer.add_summary(summary, i)
 
-                    if gs % 1000 == 0:
-                        writer.add_summary(summary, gs)
-
-                    if gs % 5000 == 0:
-                        saver.save(session, model_dir + 'd_vector.module', global_step=gs)
+                    if i % 5000 == 0:
+                        saver.save(session, model_dir + 'd_vector.module', global_step=i)
                         # accuracy = session.run(valid_accuracy, feed_dict={X: data, Y: label, d_v.train_phase: False})
-                        print("\n %1.5f \n" % accuracy)
-                i += 1
+                        print("accuracy: %1.5f" % accuracy)
+                    i += 1
                 saver.save(session, model_dir + 'd_vector.module_%d' % i)
 
 train_rnn_d_vector()

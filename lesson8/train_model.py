@@ -1,5 +1,5 @@
 import tensorflow as tf
-import d_vector as d_v
+import dnn_d_vector as d_v
 import data_process as dp
 import numpy as np
 import os

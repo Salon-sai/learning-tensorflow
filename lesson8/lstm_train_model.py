@@ -20,6 +20,7 @@ model_dir = './lstm-model/'
 def train_rnn_d_vector():
     X = tf.placeholder(tf.float32, [BATCH_SIZE, None, FEATURE_SIZE])
     Y = tf.placeholder(tf.float32, [BATCH_SIZE, label_num])
+    global_step = tf.Variable(0, trainable=False)
 
     d_vectors = d_v.RNN_d_vector(X, D_VECTOR_DIM)
 
@@ -53,24 +54,32 @@ def train_rnn_d_vector():
         if ckpt != None:
             print(ckpt.model_checkpoint_path)
             saver.restore(session, ckpt.model_checkpoint_path)
-            accuracy = session.run(valid_accuracy, feed_dict={X: data, Y: label})
-            print(accuracy)
+            vaild_num = int(len(train_label) * 0.1)
+            vaild_index = np.random.randint(len(train_data), size=vaild_num)
+            # print(vaild_index)
+            # valid_data = train_data[vaild_index]
+            # valid_label = train_label[vaild_index]
+            correct = 0
+            for index in vaild_index:
+                accuracy, p = session.run([valid_accuracy, predict], feed_dict={X: np.array([train_data[index]]), Y: np.array([train_label[index]])})
+                print(p)
+                correct += accuracy
+            print(correct / vaild_num)
         else:
             i = 0
             while i < epoch:
                 for wav_data, label in zip(train_data, train_label):
-                    _, l, accuracy, summary = session.run([optimizer, cost_func, valid_accuracy, merged], feed_dict={X: np.array([wav_data]), Y: np.array([label])})
+                    _, l, accuracy, summary, gs = session.run([optimizer, cost_func, valid_accuracy, merged, global_step], feed_dict={X: np.array([wav_data]), Y: np.array([label])})
                     print("loss: ", l)
-                    writer.add_summary(summary, i)
-                    # if i % 1000 == 0:
-                    #     writer.add_summary(summary, i)
+                    writer.add_summary(summary, gs)
 
-                    if i % 5000 == 0:
-                        saver.save(session, model_dir + 'd_vector.module', global_step=i)
+                    if gs % 5000 == 0:
+                        saver.save(session, model_dir + 'd_vector.module', global_step=gs)
                         # accuracy = session.run(valid_accuracy, feed_dict={X: data, Y: label, d_v.train_phase: False})
                         print("accuracy: %1.5f" % accuracy)
-                    i += 1
-                saver.save(session, model_dir + 'd_vector.module_%d' % i)
+                    gs += 1
+                i += 1
+                saver.save(session, model_dir + 'd_vector.module_%d' % gs)
 
 train_rnn_d_vector()
 

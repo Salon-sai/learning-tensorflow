@@ -43,7 +43,6 @@ def load_data_with_wavfile(path):
         labels.append(np.full(len(data_same_person), index))
         datas += data_same_person
     labels = np.concatenate(labels)
-    print(len(datas))
     one_hot_label = np.zeros((len(datas), len(label_index)))
     one_hot_label[np.arange(len(datas)), labels] = 1
     

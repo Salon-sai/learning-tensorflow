@@ -33,17 +33,19 @@ def load_data(path):
             wav_files_count += len(wav_files)
             data.append(data_same_person)
 
-    return data, np.arange(len(data))
+    # return data, np.arange(len(data))
+    return data
 
 def load_data_with_wavfile(path):
-    data, label_index = load_data(path)
+    # data, label_index = load_data(path)
+    data = load_data(path)
     datas = []
     labels = []
-    for data_same_person, index in zip(data, label_index):
+    for index, data_same_person in enumerate(data):
         labels.append(np.full(len(data_same_person), index))
         datas += data_same_person
     labels = np.concatenate(labels)
-    one_hot_label = np.zeros((len(datas), len(label_index)))
+    one_hot_label = np.zeros((len(datas), len(data)))
     one_hot_label[np.arange(len(datas)), labels] = 1
     
     return datas, one_hot_label
@@ -51,9 +53,9 @@ def load_data_with_wavfile(path):
 def load_train_data():
     train_data = []
     label_index = []
-    datas, labels = load_data(TRAIN_PATH)
+    datas = load_data(TRAIN_PATH)
 
-    for data, label in zip(datas, labels):
+    for label, data  in enumerate(datas):
         data = np.concatenate(data)
         frame_num = data.shape[0]
 

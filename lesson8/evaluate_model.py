@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy import stats
 
-test_data, _ = dp.get_test_data()
+test_data = dp.get_test_data()
 
 ckpt = tf.train.get_checkpoint_state('./model')
 X = tf.placeholder(tf.float32, [None, 40])

@@ -208,6 +208,7 @@ print("\nGenerator......")
 train_op_G = optimizer(G_loss, 'Generator')
 print("\nDiscriminator......")
 train_op_D = optimizer(D_loss, 'Discriminator')
+exit()
 
 def generate_fake_img(session, step='final'):
     test_nosie = np.random.uniform(-1.0, 1.0, size=(5, z_dim)).astype(np.float32)

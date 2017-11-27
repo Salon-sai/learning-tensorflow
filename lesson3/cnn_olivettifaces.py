@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib.patches as patches
 
-reload(sys)
-sys.setdefaultencoding('utf-8')
+# reload(sys)
+# sys.setdefaultencoding('utf-8')
 
 def load_data(dataset_path):
     img = Image.open(dataset_path)
@@ -198,7 +198,7 @@ def train():
     optimizer = tf.train.AdamOptimizer(1e-2).minimize(cost_func)
 
     # 用于保存训练的最佳模型
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(tf.trainable_variables(), max_to_keep=3)
     model_dir = './model'
     model_path = model_dir + '/best.ckpt'
 
@@ -211,19 +211,19 @@ def train():
 
             for epoch in range(20):
                 epoch_loss = 0
-                for i in range(np.shape(train_set_x)[0] / batch_size):
+                for i in range(np.shape(train_set_x)[0] // batch_size):
                     x = train_set_x[i * batch_size: (i + 1) * batch_size]
                     y = train_set_y[i * batch_size: (i + 1) * batch_size]
                     _, cost = session.run([optimizer, cost_func], feed_dict={X: x, Y: y})
                     epoch_loss += cost
 
                 print(epoch, ' : ', epoch_loss)
-                if best_loss > epoch_loss:
+                if best_loss >= epoch_loss:
                     best_loss = epoch_loss
                     if not os.path.exists(model_dir):
                         os.mkdir(model_dir)
                         print("create the directory: %s" % model_dir)
-                    save_path = saver.save(session, model_path)
+                    save_path = saver.save(session, model_path, write_meta_graph=False)
                     print("Model saved in file: %s" % save_path)
 
         # 恢复数据并校验和测试

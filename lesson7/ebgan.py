@@ -2,6 +2,8 @@ import os
 import random
 import numpy as np
 import tensorflow as tf
+
+import tensorflow.contrib.slim as slim
 from PIL import Image
 import getpass
 
@@ -22,7 +24,7 @@ for image_filename in os.listdir(CELEBA_DATE_DIR):
 
 random.shuffle(train_images)
 
-num_batch = len(train_images) // batch_size
+# num_batch = len(train_images) // batch_size
 
 def variable_summaries(var, name):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
@@ -54,141 +56,85 @@ X = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNE
 
 train_phase = tf.placeholder(tf.bool)
 
-def batch_norm(x, beta, gamma, phase_train, scope='bn', decay=0.9, eps=1e-5):
-    with tf.variable_scope(scope, reuse=False):
-        # moments :统计矩，mean 是一阶矩，variance 则是二阶中心矩
-        batch_mean, batch_var = tf.nn.moments(x, [0, 1, 2], name='moments')
-        # ExponentialMovingAverage ?
-        ema = tf.train.ExponentialMovingAverage(decay=decay)
-
-        def mean_var_with_update():
-            ema_apply_op = ema.apply([batch_mean, batch_var])
-            with tf.control_dependencies([ema_apply_op]):
-                return tf.identity(batch_mean), tf.identity(batch_var)
-
-        mean, var = tf.cond(phase_train, mean_var_with_update, lambda: (ema.average(batch_mean), ema.average(batch_var)))
-        normed = tf.nn.batch_normalization(x, mean, var, beta, gamma, eps)
-
-    return normed
-
 def generator(noise):
-    with tf.variable_scope("Generator"):
-        with tf.variable_scope("fc-layer1"):
-            weight = tf.get_variable('W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
-            bias = tf.get_variable("b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
-            beta = tf.get_variable("beta", [512], initializer=tf.constant_initializer(0))
-            gamma = tf.get_variable("gamma", [512], initializer=tf.random_normal_initializer(mean=1.0, stddev=0.02))
+    with slim.arg_scope([slim.conv2d_transpose]):
+        with slim.arg_scope([slim.batch_norm],
+                            is_training=train_phase):
+            weight = tf.get_variable('Generator/W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
+            bias = tf.get_variable("Generator/b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
 
-            out_1 = tf.matmul(noise, weight) + bias
-            out_1 = tf.reshape(out_1, [-1, IMAGE_SIZE // 16 , IMAGE_SIZE // 16, 512])
-            out_1 = batch_norm(out_1, beta, gamma, train_phase)
-            out_1 = tf.nn.relu(out_1, name="relu_activate")
-        with tf.variable_scope("deconv-layer2"):
-            out_2 = deconv_layer(out_1, [5, 5, 256, 512], [1, 2, 2, 1], [tf.shape(out_1)[0], IMAGE_SIZE // 8, IMAGE_SIZE // 8, 256], train_phase)
-        with tf.variable_scope("deconv-layer3"):
-            out_3 = deconv_layer(out_2, [5, 5, 128, 256], [1, 2, 2, 1], [tf.shape(out_1)[0], IMAGE_SIZE // 4, IMAGE_SIZE // 4, 128], train_phase)
-        with tf.variable_scope("deconv-layer4"):
-            out_4 = deconv_layer(out_3, [5, 5, 64, 128], [1, 2, 2, 1], [tf.shape(out_1)[0], IMAGE_SIZE // 2, IMAGE_SIZE // 2, 64], train_phase)
-        with tf.variable_scope("deconv-layer5"):
-            out_5 = deconv_layer(out_4, [5, 5, IMAGE_CHANNEL, 64], [1, 2, 2, 1], [tf.shape(out_4)[0], IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNEL], train_phase, has_batch_norm=False)
+            out_1 = tf.add(tf.matmul(noise, weight), bias, name="Generator/out_1_linear")
+            out_1 = tf.reshape(out_1, [-1, IMAGE_SIZE // 16 , IMAGE_SIZE // 16, 512], name="Generator/out_1_reshape")
+            out_1 = slim.batch_norm(inputs=out_1, activation_fn=tf.nn.relu, scope="Generator/bn_1")
+
+            out_2 = slim.conv2d_transpose(out_1, num_outputs=256, kernel_size=[5, 5], stride=2, padding="SAME", scope="Generator/deconv_2")
+            out_2 = slim.batch_norm(inputs=out_2, activation_fn=tf.nn.relu, scope="Generator/bn_2")
+
+            out_3 = slim.conv2d_transpose(out_2, num_outputs=128, kernel_size=[5, 5], stride=2, padding="SAME", scope="Generator/deconv_3")
+            out_3 = slim.batch_norm(inputs=out_3, activation_fn=tf.nn.relu, scope="Generator/bn_3")
+
+            out_4 = slim.conv2d_transpose(out_3, num_outputs=64, kernel_size=[5, 5], stride=2, padding="SAME", scope="Generator/deconv_4")
+            out_4 = slim.batch_norm(inputs=out_4, activation_fn=tf.nn.relu, scope="Generator/bn_4")
+
+            out_5 = slim.conv2d_transpose(out_4, num_outputs=3, kernel_size=[5, 5], stride=2, padding="SAME", scope="Generator/deconv_5")
+            out_5 = tf.nn.tanh(out_5, name="Generator/tanh_5")
 
     return out_5
 
-def get_paramter(kernel_size, output_depth, has_batch_norm=True):
-    weight = tf.get_variable("W", kernel_size, initializer=tf.truncated_normal_initializer(stddev=0.002))
-    bias = tf.get_variable("b", [output_depth], initializer=tf.constant_initializer(0))
-    beta = tf.get_variable('beta', [output_depth], initializer=tf.constant_initializer(0), trainable=has_batch_norm)
-    gamma = tf.get_variable('gamma', [output_depth], initializer=tf.random_normal_initializer(mean=1.0, stddev=0.02), trainable=has_batch_norm)
-    # variable_summaries(weight, "weight")
-    # variable_summaries(bias, "bias")
-    # variable_summaries(beta, "beta")
-    # variable_summaries(gamma, "gamma")
-    return weight, bias, beta, gamma
-
-def conv_layer(input, kernel_size, strides_size, train_phase, activate='leaky_relu', has_batch_norm=True):
-    with tf.variable_scope("get_paramter") as scope:
-        try:
-            if has_batch_norm:
-                weight, bias, beta, gamma = get_paramter(kernel_size, kernel_size[3])
-            else:
-                weight, bias, _, _ = get_paramter(kernel_size, kernel_size[3], False)
-        except ValueError:
-            scope.reuse_variables()
-            if has_batch_norm:
-                weight, bias, beta, gamma = get_paramter(kernel_size, kernel_size[3])
-            else:
-                weight, bias, _, _ = get_paramter(kernel_size, kernel_size[3], False)
-
-    out = tf.nn.conv2d(input, weight, strides=strides_size, padding="SAME")
-    out = tf.nn.bias_add(out, bias)
-    # variable_summaries(out, "conv2d_output")
-
-    if has_batch_norm:
-        out = batch_norm(out, beta, gamma, train_phase)
-        # variable_summaries(out, "batch_norm_output")
-
-    if activate == 'relu':
-        out = tf.nn.relu(out, name='relu_activate')
-    elif activate == 'tanh':
-        out = tf.nn.tanh(out, name='tanh_activate')
-    else:
-        out = tf.maximum(0.2 * out, out, name='leaky_relu_activate')
-    # variable_summaries(out, "layer_out")
-    return out
-
-def deconv_layer(input, kernel_size, strides_size, output_shape, train_phase, activate='leaky_relu', has_batch_norm=True):
-    with tf.variable_scope("get_paramter") as scope:
-        try:
-            if has_batch_norm:
-                weight, bias, beta, gamma = get_paramter(kernel_size, kernel_size[2])
-            else:
-                weight, bias, _, _ = get_paramter(kernel_size, kernel_size[2], False)
-        except ValueError:
-            scope.reuse_variables()
-            if has_batch_norm:
-                weight, bias, beta, gamma = get_paramter(kernel_size, kernel_size[2])
-            else:
-                weight, bias, _, _ = get_paramter(kernel_size, kernel_size[2], False)
-
-    out = tf.nn.conv2d_transpose(input, weight, output_shape=tf.stack(output_shape), strides=strides_size, padding="SAME")
-    out = tf.nn.bias_add(out, bias)
-    # variable_summaries(out, "deconv_output")
-    
-    if has_batch_norm:
-        out = batch_norm(out, beta, gamma, train_phase)
-        # variable_summaries(out, "batch_norm_output")
-
-    if activate == 'relu':
-        out = tf.nn.relu(out, name='relu_activate')
-    elif activate == 'tanh':
-        out = tf.nn.tanh(out, name='tanh_activate')
-    else:
-        out = tf.maximum(0.2 * out, out, name='leaky_relu_activate')
-    # variable_summaries(out, "layer_out")
-    return out
 
 def discriminator(input_images):
-    with tf.variable_scope("Discriminator"):
-        # Encoder
-        with tf.variable_scope("conv-layer1"):
-            out_1 = conv_layer(input_images, [4, 4, IMAGE_CHANNEL, 32], [1, 2, 2, 1], train_phase)
-        with tf.variable_scope("conv-layer2"):
-            out_2 = conv_layer(out_1, [4, 4, 32, 64], [1, 2, 2, 1], train_phase)
-        with tf.variable_scope("conv-layer3"):
-            out_3 = conv_layer(out_2, [4, 4, 64, 128], [1, 2, 2, 1], train_phase)
+    with slim.arg_scope([slim.batch_norm], is_training=train_phase):
+        with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
+                            weights_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                            biases_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                            activation_fn=None):
+            # Encoder
+            out_1 = slim.conv2d(inputs=input_images,
+                               num_outputs=32,
+                               kernel_size=[4, 4],
+                               stride=2,
+                               padding='SAME',
+                               scope="Discriminator/conv_1")
+            bn_1 = slim.batch_norm(inputs=out_1, scope="Discriminator/bn_1")
+            out_1 = tf.maximum(0.2 * bn_1, bn_1, 'Discriminator/leaky_relu_1')
 
-        encode = tf.reshape(out_3, [-1, 2 * IMAGE_SIZE * IMAGE_SIZE])
-        # Decoder
-        out_3 = tf.reshape(encode, [-1, IMAGE_SIZE // 8, IMAGE_SIZE // 8, 128])
+            out_2 = slim.conv2d(inputs=out_1,
+                               num_outputs=64,
+                               kernel_size=[4, 4],
+                               padding='SAME',
+                               stride=2,
+                               scope="Discriminator/conv_2")
+            bn_2 = slim.batch_norm(inputs=out_2, scope="Discriminator/bn_2")
+            out_2 = tf.maximum(0.2 * bn_2, bn_2, 'Discriminator/leaky_relu_2')
 
-        with tf.variable_scope("deconv-layer4"):
-            out_4 = deconv_layer(out_3, [4, 4, 64, 128], [1, 2, 2, 1], [tf.shape(out_3)[0], IMAGE_SIZE // 4, IMAGE_SIZE // 4, 64], train_phase)
-        with tf.variable_scope("deconv-layer5"):
-            out_5 = deconv_layer(out_4, [4, 4, 32, 64], [1, 2, 2, 1], [tf.shape(out_4)[0], IMAGE_SIZE // 2, IMAGE_SIZE // 2, 32], train_phase)
-        with tf.variable_scope("deconv-layer6"):
-            decoded = deconv_layer(out_5, [4, 4, 3, 32], [1, 2, 2, 1], [tf.shape(out_5)[0], IMAGE_SIZE, IMAGE_SIZE, 3], train_phase, has_batch_norm=False)
+            out_3 = slim.conv2d(inputs=out_2,
+                               num_outputs=128,
+                               kernel_size=[4, 4],
+                               padding='SAME',
+                               stride=2,
+                               scope="Discriminator/conv_3")
+            bn_3 = slim.batch_norm(inputs=out_3, scope="Discriminator/bn_3")
+            out_3 = tf.maximum(0.2 * bn_3, bn_3, 'Discriminator/leaky_relu_3')
 
-        return encode, decoded
+            encode = tf.reshape(out_3, [-1, 2 * IMAGE_SIZE * IMAGE_SIZE], name="Discriminator/encode")
+            # Decoder
+            out_3 = tf.reshape(encode, [-1, IMAGE_SIZE // 8, IMAGE_SIZE // 8, 128], name="Discriminator/encode_reshape")
+
+            out_4 = slim.conv2d_transpose(inputs=out_3, num_outputs=64, kernel_size=[4, 4], stride=2,
+                                          padding='SAME', scope="Discriminator/deconv_4")
+            out_4 = slim.batch_norm(out_4, scope="Discriminator/bn_4")
+            out_4 = tf.maximum(0.2 * out_4, out_4, name="Discriminator/leaky_relu_4")
+
+            out_5 = slim.conv2d_transpose(inputs=out_4, num_outputs=32, kernel_size=[4, 4], stride=2,
+                                          padding='SAME', scope="Discriminator/deconv_5")
+            out_5 = slim.batch_norm(out_5, scope="Discriminator/bn_5")
+            out_5 = tf.maximum(0.2 * out_5, out_5, name="Discriminator/leaky_relu_5")
+
+            out_6 = slim.conv2d_transpose(inputs=out_5, num_outputs=3, kernel_size=[4, 4], stride=2,
+                                          padding='SAME', scope="Discriminator/deconv_6")
+            out_6 = slim.batch_norm(out_6, scope="Discriminator/bn_6")
+            decoded = tf.nn.tanh(out_6, name="Discriminator/tanh_6")
+            return encode, decoded
 
 # mean squared errors
 with tf.variable_scope("Loss") as scope:
@@ -197,7 +143,7 @@ with tf.variable_scope("Loss") as scope:
     real_loss = tf.sqrt(2 * tf.nn.l2_loss(real_decoded - X)) / batch_size
     tf.summary.scalar('real_loss', real_loss)
 
-    # scope.reuse_variables()
+    scope.reuse_variables()
     _, fake_decoded = discriminator(fake_image)
     fake_loss = tf.sqrt(2 * tf.nn.l2_loss(fake_decoded - fake_image)) / batch_size
     tf.summary.scalar('fake_loss', fake_loss)
@@ -227,7 +173,6 @@ print("\nGenerator......")
 train_op_G = optimizer(G_loss, 'Loss/Generator')
 print("\nDiscriminator......")
 train_op_D = optimizer(D_loss, 'Loss/Discriminator')
-# exit()
 
 def generate_fake_img(session, step='final'):
     test_nosie = np.random.uniform(-1.0, 1.0, size=(5, z_dim)).astype(np.float32)
@@ -239,14 +184,15 @@ def generate_fake_img(session, step='final'):
         image = np.clip(image, 0, 255).astype(np.uint8)
         image = np.reshape(image, (IMAGE_SIZE, IMAGE_SIZE, -1))
         if not os.path.isdir('generate_img'):
-            os.mkdir('generate_img');
+            os.mkdir('generate_img')
         misc.imsave('./generate_img/fake_image' + str(step) + str(k) + '.jpg', image)
 
 def EB_GAN(train=True):
     with tf.Session() as sess:
         merged = tf.summary.merge_all()
-        sess.run(tf.global_variables_initializer(), feed_dict={train_phase: True})
+        # sess.run(tf.global_variables_initializer(), feed_dict={train_phase: True})
         writer = tf.summary.FileWriter('logs/', sess.graph)
+        exit()
         saver = tf.train.Saver()
 
         ckpt = tf.train.get_checkpoint_state('./model')

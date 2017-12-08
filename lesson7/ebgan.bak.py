@@ -200,15 +200,12 @@ G_loss = fake_loss
 def optimizer(loss, d_or_g):
     optim = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5)
     var_list = [v for v in tf.trainable_variables() if v.name.startswith(d_or_g)]
-    print(*var_list, sep='\n')
+    # print(*var_list, sep='\n')
     gradient = optim.compute_gradients(loss, var_list=var_list)
     return optim.apply_gradients(gradient)
 
-print("\nGenerator......")
 train_op_G = optimizer(G_loss, 'Generator')
-print("\nDiscriminator......")
 train_op_D = optimizer(D_loss, 'Discriminator')
-exit()
 
 def generate_fake_img(session, step='final'):
     test_nosie = np.random.uniform(-1.0, 1.0, size=(5, z_dim)).astype(np.float32)
@@ -219,9 +216,9 @@ def generate_fake_img(session, step='final'):
         image *= 127.5
         image = np.clip(image, 0, 255).astype(np.uint8)
         image = np.reshape(image, (IMAGE_SIZE, IMAGE_SIZE, -1))
-        if not os.path.isdir('generate_img'):
-            os.mkdir('generate_img');
-        misc.imsave('./generate_img/fake_image' + str(step) + str(k) + '.jpg', image)
+        if not os.path.isdir('generate_img_bak'):
+            os.mkdir('generate_img_bak')
+        misc.imsave('./generate_img_bak/fake_image' + str(step) + str(k) + '.jpg', image)
 
 def EB_GAN(train=True):
     with tf.Session() as sess:
@@ -229,15 +226,15 @@ def EB_GAN(train=True):
         writer = tf.summary.FileWriter('logs_bak/', sess.graph)
         saver = tf.train.Saver()
 
-        ckpt = tf.train.get_checkpoint_state('./model')
-        if ckpt != None:
-            print(ckpt.model_checkpoint_path)
-            saver.restore(sess, ckpt.model_checkpoint_path)
-        elif train:
-            print("no model")
-        elif not train:
-            print("no model to generate the fake image")
-            return
+        # ckpt = tf.train.get_checkpoint_state('./model')
+        # if ckpt != None:
+        #     print(ckpt.model_checkpoint_path)
+        #     saver.restore(sess, ckpt.model_checkpoint_path)
+        # elif train:
+        #     print("no model")
+        # elif not train:
+        #     print("no model to generate the fake image")
+        #     return
 
         if train:
             step = 0
@@ -252,7 +249,7 @@ def EB_GAN(train=True):
                     print(step, d_loss, g_loss)
 
                     if step % 100 == 0:
-                        saver.save(sess, "./model/celeba.model", global_step=step)
+                        saver.save(sess, "./model_bak/celeba.model", global_step=step)
                         # if step % 1000 == 0:
                         generate_fake_img(sess, step=step)
                     step += 1

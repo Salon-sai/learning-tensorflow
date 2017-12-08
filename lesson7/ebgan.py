@@ -17,14 +17,14 @@ IMAGE_CHANNEL = 3
 train_images = []
 num_batch = 0
 
-# jilv training images
+# 记录 training images
 for image_filename in os.listdir(CELEBA_DATE_DIR):
     if image_filename.endswith('.jpg'):
         train_images.append(os.path.join(CELEBA_DATE_DIR, image_filename))
 
 random.shuffle(train_images)
 
-# num_batch = len(train_images) // batch_size
+num_batch = len(train_images) // batch_size
 
 def variable_summaries(var, name):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
@@ -165,13 +165,13 @@ G_loss = fake_loss
 def optimizer(loss, d_or_g):
     optim = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5)
     var_list = [v for v in tf.trainable_variables() if v.name.startswith(d_or_g)]
-    print(*var_list, sep="\n")
+    # print(*var_list, sep="\n")
     gradient = optim.compute_gradients(loss, var_list=var_list)
     return optim.apply_gradients(gradient)
 
-print("\nGenerator......")
+# print("\nGenerator......")
 train_op_G = optimizer(G_loss, 'Loss/Generator')
-print("\nDiscriminator......")
+# print("\nDiscriminator......")
 train_op_D = optimizer(D_loss, 'Loss/Discriminator')
 
 def generate_fake_img(session, step='final'):
@@ -189,10 +189,11 @@ def generate_fake_img(session, step='final'):
 
 def EB_GAN(train=True):
     with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        sess.run(tf.local_variables_initializer())
         merged = tf.summary.merge_all()
         # sess.run(tf.global_variables_initializer(), feed_dict={train_phase: True})
         writer = tf.summary.FileWriter('logs/', sess.graph)
-        exit()
         saver = tf.train.Saver()
 
         ckpt = tf.train.get_checkpoint_state('./model')

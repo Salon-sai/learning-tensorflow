@@ -143,7 +143,7 @@ def discriminator(input_images, reuse=False):
 
             out_6 = slim.conv2d_transpose(inputs=out_5, num_outputs=3, kernel_size=[4, 4], stride=2,
                                           padding='SAME', scope="Discriminator/deconv_6")
-            out_6 = slim.batch_norm(out_6, scope="Discriminator/bn_6")
+            # out_6 = slim.batch_norm(out_6, scope="Discriminator/bn_6")
             decoded = tf.nn.tanh(out_6, name="Discriminator/tanh_6")
     return encode, decoded
 

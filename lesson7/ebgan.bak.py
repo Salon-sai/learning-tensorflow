@@ -25,6 +25,17 @@ random.shuffle(train_images)
 
 num_batch = len(train_images) // batch_size
 
+def variable_summaries(var, name):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+    with tf.name_scope('summaries_' + name.split(":")[0]):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+        # with tf.name_scope('stddev_' + name):
+        #     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        # tf.summary.scalar('stddev', stddev)
+        # tf.summary.scalar('max', tf.reduce_max(var))
+        # tf.summary.scalar('min', tf.reduce_min(var))
+        tf.summary.histogram('histogram', var)
 
 def get_next_batch(pointer):
     image_batch = []
@@ -201,6 +212,8 @@ def optimizer(loss, d_or_g):
     optim = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5)
     var_list = [v for v in tf.trainable_variables() if v.name.startswith(d_or_g)]
     # print(*var_list, sep='\n')
+    for var in var_list:
+        variable_summaries(var, var.name)
     gradient = optim.compute_gradients(loss, var_list=var_list)
     return optim.apply_gradients(gradient)
 
@@ -223,6 +236,7 @@ def generate_fake_img(session, step='final'):
 def EB_GAN(train=True):
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer(), feed_dict={train_phase: True})
+        merged = tf.summary.merge_all()
         writer = tf.summary.FileWriter('logs_bak/', sess.graph)
         saver = tf.train.Saver()
 
@@ -242,10 +256,11 @@ def EB_GAN(train=True):
                 for j in range(num_batch):
                     batch_noise = np.random.uniform(-1.0, 1.0, size=[batch_size, z_dim]).astype(np.float32)
 
-                    d_loss, _ = sess.run([D_loss, train_op_D], feed_dict={noise: batch_noise, X: get_next_batch(j), train_phase: True})
+                    d_loss, _, summary = sess.run([D_loss, train_op_D, merged], feed_dict={noise: batch_noise, X: get_next_batch(j), train_phase: True})
                     g_loss, _ = sess.run([G_loss, train_op_G], feed_dict={noise: batch_noise, X: get_next_batch(j), train_phase: True})
                     # g_loss, _ = sess.run([G_loss, train_op_G], feed_dict={noise: batch_noise, X: get_next_batch(j), train_phase: True})
 
+                    writer.add_summary(summary, step)
                     print(step, d_loss, g_loss)
 
                     if step % 100 == 0:

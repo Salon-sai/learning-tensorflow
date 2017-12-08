@@ -28,14 +28,14 @@ num_batch = len(train_images) // batch_size
 
 def variable_summaries(var, name):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-    with tf.name_scope('summaries_' + name):
+    with tf.name_scope('summaries_' + name.split(":")[0]):
         mean = tf.reduce_mean(var)
         tf.summary.scalar('mean', mean)
-        with tf.name_scope('stddev_' + name):
-            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.summary.scalar('stddev', stddev)
-        tf.summary.scalar('max', tf.reduce_max(var))
-        tf.summary.scalar('min', tf.reduce_min(var))
+        # with tf.name_scope('stddev_' + name):
+        #     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        # tf.summary.scalar('stddev', stddev)
+        # tf.summary.scalar('max', tf.reduce_max(var))
+        # tf.summary.scalar('min', tf.reduce_min(var))
         tf.summary.histogram('histogram', var)
 
 def get_next_batch(pointer):
@@ -57,13 +57,19 @@ X = tf.placeholder(tf.float32, [batch_size, IMAGE_SIZE, IMAGE_SIZE, IMAGE_CHANNE
 train_phase = tf.placeholder(tf.bool)
 
 def generator(noise):
-    with slim.arg_scope([slim.conv2d_transpose]):
-        with slim.arg_scope([slim.batch_norm],
-                            is_training=train_phase):
+    with slim.arg_scope([slim.conv2d_transpose],
+                        weights_initializer=tf.truncated_normal_initializer(stddev=0.02),
+                        biases_initializer=tf.constant_initializer(value=0),
+                        activation_fn=None):
+        with slim.arg_scope([slim.batch_norm], is_training=train_phase, decay=0.9, epsilon=1e-5,
+                            param_initializers={
+                                "beta": tf.constant_initializer(value=0),
+                                "gamma": tf.random_normal_initializer(mean=1, stddev=0.02)
+                            }):
             weight = tf.get_variable('Generator/W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
             bias = tf.get_variable("Generator/b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
 
-            out_1 = tf.add(tf.matmul(noise, weight), bias, name="Generator/out_1_linear")
+            out_1 = tf.add(tf.matmul(noise, weight, name="Generator/out_1_matmul"), bias, name="Generator/out_1_add")
             out_1 = tf.reshape(out_1, [-1, IMAGE_SIZE // 16 , IMAGE_SIZE // 16, 512], name="Generator/out_1_reshape")
             out_1 = slim.batch_norm(inputs=out_1, activation_fn=tf.nn.relu, scope="Generator/bn_1")
 
@@ -82,12 +88,17 @@ def generator(noise):
     return out_5
 
 
-def discriminator(input_images):
-    with slim.arg_scope([slim.batch_norm], is_training=train_phase):
+def discriminator(input_images, reuse=False):
+    with slim.arg_scope([slim.batch_norm],
+                        is_training=train_phase, reuse=reuse, decay=0.9, epsilon=1e-5,
+                        param_initializers={
+                            "beta": tf.constant_initializer(value=0),
+                            "gamma": tf.random_normal_initializer(mean=1, stddev=0.02)
+                        }):
         with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
                             weights_initializer=tf.truncated_normal_initializer(stddev=0.02),
-                            biases_initializer=tf.truncated_normal_initializer(stddev=0.02),
-                            activation_fn=None):
+                            biases_initializer=tf.constant_initializer(value=0),
+                            activation_fn=None, reuse=reuse):
             # Encoder
             out_1 = slim.conv2d(inputs=input_images,
                                num_outputs=32,
@@ -126,7 +137,7 @@ def discriminator(input_images):
             out_4 = tf.maximum(0.2 * out_4, out_4, name="Discriminator/leaky_relu_4")
 
             out_5 = slim.conv2d_transpose(inputs=out_4, num_outputs=32, kernel_size=[4, 4], stride=2,
-                                          padding='SAME', scope="Discriminator/deconv_5")
+                                          padding='SAME', scope="Discriminator/deconv_5" )
             out_5 = slim.batch_norm(out_5, scope="Discriminator/bn_5")
             out_5 = tf.maximum(0.2 * out_5, out_5, name="Discriminator/leaky_relu_5")
 
@@ -134,28 +145,19 @@ def discriminator(input_images):
                                           padding='SAME', scope="Discriminator/deconv_6")
             out_6 = slim.batch_norm(out_6, scope="Discriminator/bn_6")
             decoded = tf.nn.tanh(out_6, name="Discriminator/tanh_6")
-            return encode, decoded
+    return encode, decoded
 
 # mean squared errors
 with tf.variable_scope("Loss") as scope:
-    _, real_decoded = discriminator(X)
+    _, real_decoded = discriminator(X, reuse=False)
     fake_image = generator(noise)
     real_loss = tf.sqrt(2 * tf.nn.l2_loss(real_decoded - X)) / batch_size
     tf.summary.scalar('real_loss', real_loss)
 
-    scope.reuse_variables()
-    _, fake_decoded = discriminator(fake_image)
+    # scope.reuse_variables()
+    _, fake_decoded = discriminator(fake_image, reuse=True)
     fake_loss = tf.sqrt(2 * tf.nn.l2_loss(fake_decoded - fake_image)) / batch_size
     tf.summary.scalar('fake_loss', fake_loss)
-
-# with tf.variable_scope('real_loss'):
-#     _, real_decoded = discriminator(X)
-# real_loss = tf.sqrt(2 * tf.nn.l2_loss(real_decoded - X)) / batch_size
-
-# with tf.variable_scope('fake_loss'):
-#     fake_image = generator(noise)
-#     _, fake_decoded = discriminator(fake_image)
-# fake_loss = tf.sqrt(2 * tf.nn.l2_loss(fake_decoded - fake_image)) / batch_size
 
 # loss
 margin = 20
@@ -165,6 +167,8 @@ G_loss = fake_loss
 def optimizer(loss, d_or_g):
     optim = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5)
     var_list = [v for v in tf.trainable_variables() if v.name.startswith(d_or_g)]
+    for var in var_list:
+        variable_summaries(var, var.name)
     # print(*var_list, sep="\n")
     gradient = optim.compute_gradients(loss, var_list=var_list)
     return optim.apply_gradients(gradient)
@@ -194,17 +198,16 @@ def EB_GAN(train=True):
         merged = tf.summary.merge_all()
         # sess.run(tf.global_variables_initializer(), feed_dict={train_phase: True})
         writer = tf.summary.FileWriter('logs/', sess.graph)
-        saver = tf.train.Saver()
-
-        ckpt = tf.train.get_checkpoint_state('./model')
-        if ckpt != None:
-            print(ckpt.model_checkpoint_path)
-            saver.restore(sess, ckpt.model_checkpoint_path)
-        elif train:
-            print("no model")
-        elif not train:
-            print("no model to generate the fake image")
-            return
+        # saver = tf.train.Saver()
+        # ckpt = tf.train.get_checkpoint_state('./model')
+        # if ckpt != None:
+        #     print(ckpt.model_checkpoint_path)
+        #     saver.restore(sess, ckpt.model_checkpoint_path)
+        # elif train:
+        #     print("no model")
+        # elif not train:
+        #     print("no model to generate the fake image")
+        #     return
 
         if train:
             step = 0
@@ -220,7 +223,7 @@ def EB_GAN(train=True):
                     print(step, d_loss, g_loss)
 
                     if step % 100 == 0:
-                        saver.save(sess, "./model/celeba.model", global_step=step)
+                        # saver.save(sess, "./model/celeba.model", global_step=step)
                         # if step % 1000 == 0:
                         generate_fake_img(sess, step=step)
                     step += 1

@@ -58,15 +58,15 @@ train_phase = tf.placeholder(tf.bool)
 
 def generator(noise):
     with slim.arg_scope([slim.conv2d_transpose],
-                        weights_initializer=tf.truncated_normal_initializer(stddev=0.2),
+                        weights_initializer=tf.truncated_normal_initializer(stddev=0.05),
                         biases_initializer=tf.constant_initializer(value=0),
                         activation_fn=None):
         with slim.arg_scope([slim.batch_norm], is_training=train_phase, decay=0.9, epsilon=1e-5,
                             param_initializers={
                                 "beta": tf.constant_initializer(value=0),
-                                "gamma": tf.random_normal_initializer(mean=1, stddev=0.2)
+                                "gamma": tf.random_normal_initializer(mean=1, stddev=0.05)
                             }):
-            weight = tf.get_variable('Generator/W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.02))
+            weight = tf.get_variable('Generator/W', [z_dim, 2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.truncated_normal_initializer(stddev=0.1))
             bias = tf.get_variable("Generator/b", [2 * IMAGE_SIZE * IMAGE_SIZE], initializer=tf.constant_initializer(0))
 
             out_1 = tf.add(tf.matmul(noise, weight, name="Generator/out_1_matmul"), bias, name="Generator/out_1_add")
@@ -93,10 +93,10 @@ def discriminator(input_images, reuse=False):
                         is_training=train_phase, reuse=reuse, decay=0.9, epsilon=1e-5,
                         param_initializers={
                             "beta": tf.constant_initializer(value=0),
-                            "gamma": tf.random_normal_initializer(mean=1, stddev=0.2)
+                            "gamma": tf.random_normal_initializer(mean=1, stddev=0.05)
                         }):
         with slim.arg_scope([slim.conv2d, slim.conv2d_transpose],
-                            weights_initializer=tf.truncated_normal_initializer(stddev=0.2),
+                            weights_initializer=tf.truncated_normal_initializer(stddev=0.05),
                             biases_initializer=tf.constant_initializer(value=0),
                             activation_fn=None, reuse=reuse):
             # Encoder

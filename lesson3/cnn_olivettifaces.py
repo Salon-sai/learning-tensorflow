@@ -6,14 +6,11 @@ import tensorflow as tf
 import time
 
 import os
-import sys
 
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import matplotlib.patches as patches
 
-# reload(sys)
-# sys.setdefaultencoding('utf-8')
 
 def load_data(dataset_path):
     img = Image.open(dataset_path)
@@ -59,7 +56,9 @@ def load_data(dataset_path):
 
 def convolutional_layer(data, kernel_size, bias_size, pooling_size):
     kernel = tf.get_variable("conv", kernel_size, initializer=tf.random_normal_initializer())
+    tf.summary.histogram('conv_kernel_histogram', kernel)
     bias = tf.get_variable('bias', bias_size, initializer=tf.random_normal_initializer())
+    tf.summary.histogram('bias_histogram', bias)
 
     conv = tf.nn.conv2d(data, kernel, strides=[1, 1, 1, 1], padding='SAME')
     linear_output = tf.nn.relu(tf.add(conv, bias))
@@ -68,8 +67,10 @@ def convolutional_layer(data, kernel_size, bias_size, pooling_size):
     return pooling
 
 def linear_layer(data, weights_size, biases_size):
-    weights = tf.get_variable("weigths", weights_size, initializer=tf.random_normal_initializer())
+    weights = tf.get_variable("weights", weights_size, initializer=tf.random_normal_initializer())
+    tf.summary.histogram('weights', weights)
     biases = tf.get_variable("biases", biases_size, initializer=tf.random_normal_initializer())
+    tf.summary.histogram('biases', biases)
 
     return tf.add(tf.matmul(data, weights), biases)
 
@@ -129,13 +130,14 @@ def convolutional_neural_network(data):
             pooling_size=[1, 2, 2, 1]
         )
     # 经过第二层卷积神经网络后，得到的张量shape为：[batch, 15, 12, 64]
-    with tf.variable_scope("cocnv_layer2") as layer2:
+    with tf.variable_scope("conv_layer2") as layer2:
         layer2_output = convolutional_layer(
             data=layer1_output,
             kernel_size=kernel_shape2,
             bias_size=bias_shape2,
             pooling_size=[1, 2, 2, 1]
         )
+
     with tf.variable_scope("full_connection") as full_layer3:
         # 讲卷积层张量数据拉成2-D张量只有有一列的列向量
         layer2_output_flatten = tf.contrib.layers.flatten(layer2_output)
@@ -146,6 +148,7 @@ def convolutional_neural_network(data):
                 biases_size=full_conn_b_shape
             )
         )
+
         # layer3_output = tf.nn.dropout(layer3_output, 0.8)
     with tf.variable_scope("output") as output_layer4:
         output = linear_layer(
@@ -195,6 +198,7 @@ def train():
 
     predict = convolutional_neural_network(X)
     cost_func = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=predict, labels=Y))
+    tf.summary.scalar("cost_func", cost_func)
     optimizer = tf.train.AdamOptimizer(1e-2).minimize(cost_func)
 
     # 用于保存训练的最佳模型
@@ -202,19 +206,32 @@ def train():
     model_dir = './model'
     model_path = model_dir + '/best.ckpt'
 
+    merged = tf.summary.merge_all()
+
     with tf.Session() as session:
         # 若不存在模型数据，需要训练模型参数
         if not os.path.exists(model_path + ".index"):
             session.run(tf.global_variables_initializer())
+            writer = tf.summary.FileWriter("./tmp/logs", session.graph)
 
             best_loss = float('Inf')
 
             for epoch in range(20):
                 epoch_loss = 0
-                for i in range(np.shape(train_set_x)[0] // batch_size):
+                batch_num = np.shape(train_set_x)[0] // batch_size
+                for i in range(batch_num):
+                    step = epoch * batch_num + i
                     x = train_set_x[i * batch_size: (i + 1) * batch_size]
                     y = train_set_y[i * batch_size: (i + 1) * batch_size]
-                    _, cost = session.run([optimizer, cost_func], feed_dict={X: x, Y: y})
+
+                    run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+                    run_metadata = tf.RunMetadata()
+                    _, cost, summary = session.run([optimizer, cost_func, merged],
+                        feed_dict={X: x, Y: y},
+                        options=run_options,
+                        run_metadata=run_metadata)
+                    writer.add_run_metadata(run_metadata, 'step%d' % step)
+                    writer.add_summary(summary, step)
                     epoch_loss += cost
 
                 print(epoch, ' : ', epoch_loss)

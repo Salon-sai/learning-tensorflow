@@ -116,8 +116,11 @@ def alias_setup(probs):
         small = smaller.pop()
         large = larger.pop()
 
+        # 记录index
         J[small] = large
+        # 将small的补充满1后，算出剩余large的概率
         q[large] = q[small] + q[large] - 1
+        # 若q[large]不等于1，则继续放入smaller和larger的数组中进行迭代
         if q[large] < 1.0:
             smaller.append(large)
         else:

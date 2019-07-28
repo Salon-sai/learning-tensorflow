@@ -16,7 +16,7 @@ class deepwalk():
         self.p = p
         self.q = q
 
-    def node2vec_walk(self, walk_length, start_node):
+    def random_walk(self, walk_length, start_node):
         G = self.G
         walk = [start_node]
         for _ in range(walk_length):
@@ -36,7 +36,7 @@ class deepwalk():
             print(f"{walk_iter + 1}/{num_walks}")
             random.shuffle(nodes)
             for node in nodes:
-                walks.append(self.node2vec_walk(walk_length, node))
+                walks.append(self.random_walk(walk_length, node))
         return walks
 
 def parse_args():

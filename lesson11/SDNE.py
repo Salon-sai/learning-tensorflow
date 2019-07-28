@@ -199,7 +199,7 @@ def plot_embeddings(embeddings, label_file):
     X, Y = read_node_label(label_file, skip_head=True)
     emb_list = []
     for k in X:
-        emb_list.append(embeddings[int(k)])
+        emb_list.append(embeddings[k])
     emb_list = np.array(emb_list)
     model = TSNE(n_components=2)
     node_pos = model.fit_transform(emb_list)
@@ -229,7 +229,8 @@ def read_graph():
     return G
 
 def main(args):
-    nx_G = read_graph()
+    # nx_G = read_graph()
+    nx_G = nx.read_edgelist(args.input, create_using=nx.DiGraph(), nodetype=None, data=[('weight', int)])
     model = SDNE(nx_G, hidden_size=[256, 128],)
     model.train(batch_size=3000, epochs=40, verbose=2)
     _embeddings = model.get_embeddings()

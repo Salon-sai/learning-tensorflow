@@ -50,6 +50,8 @@ def parse_args():
     parser.add_argument('--window-size', type=int, default=10, help='Context size for optimization. Default is 10.')
     parser.add_argument('--iter', default=2, type=int, help='Number of epochs in SGD')
     parser.add_argument('--workers', type=int, default=8, help='Number of parallel workers. Default is 8.')
+    parser.add_argument('--p', type=float, default=1., help="P of Param")
+    parser.add_argument('--q', type=float, default=1., help="Q of Param")
     parser.add_argument('--weighted', dest='weighted', action='store_true', help='Boolean specifying (un)weighted. Default is unweighted.')
     parser.add_argument('--unweighted', dest='unweighted', action='store_false')
     parser.set_defaults(weighted=False)

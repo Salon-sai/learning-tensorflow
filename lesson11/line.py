@@ -97,6 +97,7 @@ class Line:
         self.negative_ratio = negative_ratio
         self.order = order
         self.batch_size = batch_size
+        self.times = times
         self.embedding_size = embedding_size
 
         self.node_size = self.G.number_of_nodes()
@@ -196,7 +197,11 @@ class Line:
 
         return self._embeddings
 
+    def reset_training_config(self):
+        self.steps_per_epoch = (self.samples_per_epoch - 1 // self.batch_size + 1) * self.times
+
     def train(self, epoch=1, initial_epoch=0, verbose=1):
+        # self.reset_training_config()
         hist = self.model.fit_generator(self.batch_it, epochs=epoch, initial_epoch=initial_epoch, verbose=verbose,
                                         steps_per_epoch=self.steps_per_epoch)
         return hist
@@ -272,7 +277,7 @@ def read_graph():
 def main(args):
     nx_G = read_graph()
     line = Line(nx_G, batch_size=1024, embedding_size=128, order='second')
-    line.train(epoch=2)
+    line.train(epoch=50)
     _embeddings = line.get_embeddings()
     plot_embeddings(_embeddings, args.label_file)
 

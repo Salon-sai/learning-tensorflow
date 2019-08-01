@@ -49,6 +49,8 @@ def create_model(numNodes, embedding_size, order='second'):
 
 def create_alias_table(area_ratio):
     l = len(area_ratio)
+    # alias记录同一区域拼凑的large_id
+    # accpet记录每个区域下的area_ratio_，若该区域下的area_ratio_大于1，那么设置为1
     accept, alias = [0] * l, [0] * l
     small, large = [], []
     area_ratio_ = np.array(area_ratio) * l
@@ -60,7 +62,9 @@ def create_alias_table(area_ratio):
 
     while small and large:
         small_idx, large_idx = small.pop(), large.pop()
+        # small_id下的area为1，将其area_ratio_放到accpet，待采样时作为判断条件
         accept[small_idx] = area_ratio_[small_idx]
+        # alias[small_id]记录拼凑的large_id
         alias[small_idx] = large_idx
         area_ratio_[large_idx] = area_ratio_[large_idx] - (1 - area_ratio_[small_idx])
 
@@ -116,6 +120,7 @@ class Line:
         numNodes = self.node_size
         node_degree = np.zeros(numNodes)  # out degree
 
+        # 计算每个节点的出度权值总和
         for edge in self.G.edges():
             node_degree[edge[0]] += self.G[edge[0]][edge[1]].get('weight', 1.0)
 
@@ -125,7 +130,9 @@ class Line:
         self.node_accept, self.node_alias = create_alias_table(norm_prob)
 
         numEdges = self.G.number_of_edges()
+        # 整个图的出度权值总和
         total_sum = sum([self.G[edge[0]][edge[1]].get('weight', 1.0) for edge in self.G.edges()])
+        # 正则化
         norm_prob = [self.G[edge[0]][edge[1]].get('weight', 1.0) * numEdges / total_sum for edge in self.G.edges()]
 
         self.edge_accept, self.edge_alias = create_alias_table(norm_prob)
@@ -133,9 +140,10 @@ class Line:
     def batch_iter(self):
         edges = list(self.G.edges)
         data_size = self.G.number_of_edges()
+        # 将边的id打散，采样的时候需要用到edge_id
         shuffle_indices = np.random.permutation(np.arange(data_size))
 
-        # 判断是否需要shuffle
+        # 判断是否需要取负样本还是正样本，mod为0取正样本，其他为负样本
         mod = 0
         mod_size = 1 + self.negative_ratio
         h = []
@@ -147,21 +155,29 @@ class Line:
 
         while True:
             if mod == 0:
+                # 正样本
                 h = []
                 t = []
                 for i in range(start_index, end_index):
+                    # 判断选择是否为shuffle_indices[i]还是edge_alias[shuffle_indices[i]]
                     if random.random() >= self.edge_accept[shuffle_indices[i]]:
                         shuffle_indices[i] = self.edge_alias[shuffle_indices[i]]
-                    cur_h = edges[shuffle_indices[i]][0]
-                    cur_t = edges[shuffle_indices[i]][1]
+                    cur_h = edges[shuffle_indices[i]][0] # 源节点
+                    cur_t = edges[shuffle_indices[i]][1] # 目标节点
                     h.append(cur_h)
                     t.append(cur_t)
                 sign = np.ones(len(h))
             else:
-                sign = np.ones(len(h)) * -1
+                # 负样本
+                sign = np.ones(len(h)) * -1 # 源节点依然是正样本采样
                 t = []
                 for i in range(len(h)):
-                    t.append(alias_sample(self.node_accept, self.node_alias))
+                    exclude_v = [v for v in self.G.neighbors(h[i])]
+                    exclude_v.append(h[i])
+                    cur_t = alias_sample(self.node_accept, self.node_alias)
+                    while cur_t in exclude_v:
+                        cur_t = alias_sample(self.node_accept, self.node_alias)
+                    t.append(cur_t)
 
             if self.order == "all":
                 yield ([np.array(h), np.array(t)], [sign, sign])
@@ -263,6 +279,7 @@ def plot_embeddings(embeddings, label_file):
 
 def read_graph():
     if args.weighted:
+        print("ars weighted is True")
         G = nx.read_edgelist(args.input, nodetype=int, data=(('weight', float), ), create_using=nx.DiGraph)
     else:
         G = nx.read_edgelist(args.input, nodetype=int, create_using=nx.DiGraph())
@@ -275,9 +292,10 @@ def read_graph():
     return G
 
 def main(args):
-    nx_G = read_graph()
+    # nx_G = read_graph()
+    nx_G = nx.read_edgelist(args.input, create_using=nx.DiGraph(), nodetype=int, data=(("weight", int)))
     line = Line(nx_G, batch_size=1024, embedding_size=128, order='second')
-    line.train(epoch=50)
+    line.train(epoch=50, verbose=2)
     _embeddings = line.get_embeddings()
     plot_embeddings(_embeddings, args.label_file)
 

@@ -4,3 +4,4 @@ env3.5/
 .idea/
 *logs/
 *.pyc
+.vscode/

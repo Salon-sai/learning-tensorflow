@@ -6,9 +6,8 @@ import random
 import argparse
 import networkx as nx
 from gensim.models import Word2Vec
-from sklearn.manifold import TSNE
 
-import matplotlib.pyplot as plt
+from utils import read_node_label, plot_embeddings
 
 class node2vec_walk():
 
@@ -141,7 +140,7 @@ def alias_draw(J, q):
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run node2vec.")
-    parser.add_argument('--input', nargs='?', default='data/brazil-airports.edgelist', help='Input graph path')
+    parser.add_argument('--input', nargs='?', default='./data/Wiki_edgelist.txt', help='Input graph path')
     parser.add_argument('--output', nargs='?', default='emb/node2vec_wiki.emb', help='Embeddings path')
     parser.add_argument('--label_file', nargs='?', default='data/wiki_labels.txt', help='Labels path')
     parser.add_argument('--dimensions', type=int, default=128, help='Number of dimensions. Default is 128.')
@@ -159,43 +158,6 @@ def parse_args():
     parser.add_argument('--undirected', dest='undirected', action='store_false')
     parser.set_defaults(directed=False)
     return parser.parse_args()
-
-def read_node_label(filename, skip_head=False):
-    fin = open(filename, 'r')
-    X = []
-    Y = []
-    while 1:
-        if skip_head:
-            fin.readline()
-        l = fin.readline()
-        if l == '':
-            break
-        vec = l.strip().split(' ')
-        X.append(vec[0])
-        Y.append(vec[1:])
-    fin.close()
-    return X, Y
-
-def plot_embeddings(embeddings, label_file):
-    X, Y = read_node_label(label_file, skip_head=True)
-    emb_list = []
-    for k in X:
-        emb_list.append(embeddings[k])
-    emb_list = np.array(emb_list)
-    model = TSNE(n_components=2)
-    node_pos = model.fit_transform(emb_list)
-
-    color_idx = {}
-
-    for i in range(len(X)):
-        color_idx.setdefault(Y[i][0], [])
-        color_idx[Y[i][0]].append(i)
-
-    for c, idx in color_idx.items():
-        plt.scatter(node_pos[idx, 0], node_pos[idx, 1], label=c)  # c=node_colors)
-    plt.legend()
-    plt.show()
-
 
 def read_graph():
     if args.weighted:
@@ -224,8 +186,8 @@ def main(args):
     model = learning_walks(walks)
 
     _embeddings = {}
-    for word in nx_G.nodes():
-        _embeddings[str(word)] = model.wv[str(word)]
+    for v in nx_G.nodes():
+        _embeddings[str(v)] = model.wv[str(v)]
 
     plot_embeddings(_embeddings, args.label_file)
 

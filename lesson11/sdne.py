@@ -88,6 +88,21 @@ class SDNE(object):
             return K.mean(t)
         return loss_2nd
 
+    def define_graph(self, l1=1e-5, l2=1e-4, hidden_size=[256, 128]):
+        a = tf.placeholder(dtype=tf.float32, shape=[None, self.node_size], name="node_vec")
+        l = tf.placeholder(dtype=tf.float32, shape=[None, None], name="l")
+
+        x = a
+        for unit in hidden_size:
+            x = tf.layers.dense(x, unit, activation="relu")
+        
+        y = tf.identity(x, name="y")
+
+        for i in reversed(range(len(hidden_size) - 1)):
+            x = tf.layers.dense(x, hidden_size[i], activation="relu")
+
+        x_mat = tf.identity(x, name="x_mat")
+
     def model_graph(self, l1=1e-5, l2=1e-4, hidden_size=[256, 128]):
         a = Input(shape=(self.node_size,))
         l = Input(shape=(None,))

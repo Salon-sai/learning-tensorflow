@@ -8,6 +8,7 @@ import tensorflow as tf
 import networkx as nx
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
+from scipy import sparse
 
 from tensorflow.python.keras import backend as K
 from tensorflow.python.keras.callbacks import History
@@ -15,7 +16,7 @@ from tensorflow.python.keras.layers import Dense, Input
 from tensorflow.python.keras.models import Model
 from tensorflow.python.keras.regularizers import l1_l2
 
-from utils import read_node_label, plot_embeddings
+from utils import read_node_label, plot_embeddings, evaluate_embeddings
 
 class SDNE(object):
 
@@ -29,7 +30,7 @@ class SDNE(object):
         self.nu2 = nu2
 
         # 获取邻接矩阵，拉普拉斯矩阵
-        self.A, self.L = self._create_A_L(self.graph)
+        self.A, self.L = self._sparse_create_A_L(self.graph)
         self.inputs = [self.A, self.L]
         self._embeddings = {}
         self.model, self.emb_model = self.model_graph(hidden_size=hidden_size)
@@ -54,7 +55,11 @@ class SDNE(object):
                     index = np.arange(i * batch_size, min((i + 1) * batch_size, self.node_size))
 
                     train_A = self.A[index, :]  # batch_size * node_size
+                    if sparse.issparse(train_A):
+                        train_A = train_A.toarray()
                     train_L = self.L[index][:, index] # L矩阵是一个对角矩阵
+                    if sparse.issparse(train_L):
+                        train_L = train_L.toarray()
 
                     inp = [train_A, train_L]
                     batch_losses = self.model.train_on_batch(inp, inp)
@@ -146,6 +151,15 @@ class SDNE(object):
         L = D - A_
         return A, L
 
+    def _sparse_create_A_L(self, graph):
+        # A = np.zeros((self.node_size, self.node_size))
+        # TODO: 只针对权值为1的邻接图
+        A_ = nx.adjacency_matrix(graph, sorted(graph.nodes(), key=lambda x: int(x))).astype(np.int16)
+        A = ((A_ + A_.T) != 0).astype(np.int16)
+        D = sparse.diags(np.array(A.sum(0)).flatten()).astype(np.int16)
+        L = (D - A).astype(np.int16)
+        return A_, L
+
 def parse_args():
     parser = argparse.ArgumentParser(description="SDNE parameter")
     parser.add_argument('--input', nargs='?', default='data/Wiki_edgelist.txt', help='Input graph path')
@@ -157,10 +171,11 @@ def parse_args():
 def main(args):
     nx_G = nx.read_edgelist(args.input, create_using=nx.DiGraph(), nodetype=None, data=[("weight", int)])
     model = SDNE(nx_G, hidden_size=[512, 256, 256])
-    model.train(batch_size=3000, epochs=50, verbose=2)
+    model.train(batch_size=2000, epochs=50, verbose=2)
 
     embeddings = model.get_embeddings()
     embeddings = {str(k): embeddings[k] for k in embeddings.keys()}
+    evaluate_embeddings(embeddings, args.label_file)
     plot_embeddings(embeddings, args.label_file)
 
 if __name__ == "__main__":

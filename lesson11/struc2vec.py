@@ -66,7 +66,7 @@ class Struc2Vec():
                 degree = len(self.graph[node])
                 if self.opt1_reduce_len:
                     # 统计当前层下的同样度的节点个数
-                    degree_list[degee] = degree_list.get(degree, 0) + 1
+                    degree_list[degree] = degree_list.get(degree, 0) + 1
                 else:
                     degree_list.append(degree)
                 
@@ -148,6 +148,37 @@ class Struc2Vec():
                 degrees[degree]['after'] = degrees_sorted[index + 1]
         return degrees
 
+    def _get_transition_probs(self, layers_adj, layers_distances):
+        layers_alias = {}
+        layers_accept = {}
+
+        for layer in layers_adj:
+            neighbors = layers_adj[layer]
+            layer_distances = layers_distances[layer]
+            node_alias_dict = {}
+            node_accept_dict = {}
+            norm_weights = {}
+
+            for v, neighbors in neighbors.items():
+                e_list = []
+                sum_w = 0.0
+
+                for n in neighbors:
+                    if (v, n) in layers_distances:
+                        wd = layers_distances[v, n]
+                    else:
+                        wd = layers_distances[n, v]
+                    w = np.exp(-float(wd))
+                    e_list.append(w)
+                    sum_w += w
+            e_list = [x / sum_w for x in e_list]
+            norm_weights[v] = e_list
+            accept, alias = create_alias_table(e_list)
+            node_alias_dict[v] = alias
+            node_accept_dict[v] = accept
+
+        pd.to_pickle(norm_weights, self.temp_path + "norm_weights_distance-layer-" + str(layer)+'.pkl')
+
 def cost(a, b):
     ep = 0.5
     m = max(a, b) + ep
@@ -165,6 +196,17 @@ def cost_max(a, b):
     m = max(a[0], b[0]) + ep
     mi = min(a[0], b[0]) + ep
     return ((m / mi) - 1) * max(a[1], b[1])
+
+def convert_dtw_struc_dist(distances, start_layer=1):
+    for vertices, layers in distances.items():
+        keys_layers = sorted(layers.keys())
+        start_layer = min(len(keys_layers), start_layer)
+        for layer in range(0, start_layer):
+            keys_layers.pop(0)
+
+        for layer in keys_layers:
+            layers[layer] += layers[layer - 1]
+    return distances
 
 def get_vertices(v, degree_v, degrees, n_nodes):
     # 通过传入的度数，找出对应的节点
@@ -241,8 +283,24 @@ def compute_dtw_dist(part_list, degree_list, dist_func):
         for v2 in nbs:
             lists_v2 = degree_list[v2] # orderd degree list of v2
             max_layer = min(len(lists_v1), len(lists_v2))
-            dtw_dist[v1, v2] = {}
+            dtw_dict[v1, v2] = {}
             for layer in range(0, max_layer):
                 dist, path = fastdtw(lists_v1[layer], lists_v2[layer], radius=1, dist=dist_func)
                 dtw_dict[v1, v2][layer] = dist
     return dtw_dict
+
+def partition_dict(vertices, workers):
+    batch_size = (len(vertices) - 1) // workers + 1
+    part_list = []
+    part = []
+    count = 0
+    for v1, nbs in vertices.items():
+        part.append((v1, nbs))
+        count += 1
+        if count % batch_size == 0:
+            part_list.append(part)
+            part = []
+    if len(part) > 0:
+        part_list.append(part)
+    return part_list
+

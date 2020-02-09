@@ -107,9 +107,41 @@ def plot_embeddings(embeddings, label_file):
     plt.show()
 
 def evaluate_embeddings(embeddings, label_file):
-    X, Y = read_node_label(label_file)
+    X, Y = read_node_label(label_file,skip_head=True)
     tr_frac = 0.8
     print("Training classifier using {:.2f}% nodes...".format(
         tr_frac * 100))
-    clf = Classifier(embeddings=embeddings, clf=LogisticRegression())
+    clf = Classifier(embeddings=embeddings, clf=LogisticRegression(max_iter=500))
     clf.split_train_evaluate(X, Y, tr_frac)
+
+def preprocess_nxgraph(graph):
+    node2idx = {}
+    idx2node = []
+    node_size = 0
+    for node in graph.nodes():
+        node2idx[node] = node_size
+        idx2node.append(node)
+        node_size += 1
+    return idx2node, node2idx
+
+def partition_dict(vertices, workers):
+    batch_size = (len(vertices) - 1) // workers + 1
+    part_list = []
+    part = []
+    count = 0
+    for v1, nbs in vertices.items():
+        part.append((v1, nbs))
+        count += 1
+        if count % batch_size == 0:
+            part_list.append(part)
+            part = []
+    if len(part) > 0:
+        part_list.append(part)
+    return part_list
+
+
+def partition_num(num, workers):
+    if num % workers == 0:
+        return [num // workers] * workers
+    else:
+        return [num // workers] * workers + [num % workers]
